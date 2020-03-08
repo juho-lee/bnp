@@ -33,7 +33,7 @@ def main():
             default='train')
 
     parser.add_argument('--lr', type=float, default=5e-4)
-    parser.add_argument('--num_steps', type=int, default=50000)
+    parser.add_argument('--num_steps', type=int, default=100000)
     parser.add_argument('--print_freq', type=int, default=200)
     parser.add_argument('--eval_freq', type=int, default=5000)
     parser.add_argument('--save_freq', type=int, default=1000)
@@ -68,10 +68,14 @@ def main():
         model = CNP()
     elif args.model == 'np':
         model = NP()
+    elif args.model == 'bnp':
+        model = BNP()
     elif args.model == 'canp':
         model = CANP()
     elif args.model == 'anp':
         model = ANP()
+    elif args.model == 'banp':
+        model = BANP()
     model.cuda()
 
     if args.mode == 'train':
@@ -197,7 +201,7 @@ def plot(args, sampler, model):
         print(outs.pred_ll.item())
         mu, sigma = model.predict(batch.xc, batch.yc,
                 xp[None,:,None].repeat(args.plot_batch_size, 1, 1),
-                num_samples=args.num_eval_samples)
+                num_samples=args.num_plot_samples)
 
     if args.plot_batch_size > 1:
         nrows = max(args.plot_batch_size//4, 1)
@@ -212,10 +216,13 @@ def plot(args, sampler, model):
     if mu.dim() == 4:
         for i, ax in enumerate(axes):
             for s in range(mu.shape[0]):
-                ax.plot(tnp(xp), tnp(mu[s][i]), color='steelblue', alpha=0.2)
+                ax.plot(tnp(xp), tnp(mu[s][i]), color='steelblue',
+                        alpha=max(0.5/args.num_plot_samples, 0.1))
                 ax.fill_between(tnp(xp), tnp(mu[s][i])-tnp(sigma[s][i]),
                         tnp(mu[s][i])+tnp(sigma[s][i]),
-                        color='skyblue', alpha=0.02, linewidth=0.0)
+                        color='skyblue',
+                        alpha=max(0.2/args.num_plot_samples, 0.02),
+                        linewidth=0.0)
             ax.scatter(tnp(batch.xc[i]), tnp(batch.yc[i]),
                     color='k', label='context', zorder=mu.shape[0]+1)
             ax.scatter(tnp(batch.xt[i]), tnp(batch.yt[i]),
@@ -227,7 +234,7 @@ def plot(args, sampler, model):
         for i, ax in enumerate(axes):
             ax.plot(tnp(xp), tnp(mu[i]), color='steelblue', alpha=0.5)
             ax.fill_between(tnp(xp), tnp(mu[i]-sigma[i]), tnp(mu[i]+sigma[i]),
-                    color='skyblue', alpha=0.1, linewidth=0.0)
+                    color='skyblue', alpha=0.2, linewidth=0.0)
             ax.scatter(tnp(batch.xc[i]), tnp(batch.yc[i]),
                     color='k', label='context')
             ax.scatter(tnp(batch.xt[i]), tnp(batch.yt[i]),

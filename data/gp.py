@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
+from torch.distributions import MultivariateNormal, StudentT
 from attrdict import AttrDict
 import math
 
@@ -33,6 +33,11 @@ class GPSampler(object):
         cov = self.kernel(batch.x)
         mean = torch.zeros(batch_size, num_points, device=device)
         batch.y = MultivariateNormal(mean, cov).rsample().unsqueeze(-1)
+
+        #err = torch.bernoulli(0.2*torch.ones(batch.y.shape)) \
+        #        * 0.1*StudentT(2.0).rsample(batch.y.shape)
+        #batch.y += err.to(device)
+
         batch.yc = batch.y[:,:num_ctx]
         batch.yt = batch.y[:,num_ctx:]
 
