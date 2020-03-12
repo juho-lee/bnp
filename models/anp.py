@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, kl_divergence
+from torch.distributions import Normal, kl_divergence, Dirichlet
 from attrdict import AttrDict
 import math
 
@@ -52,10 +52,10 @@ class DeterministicEncoder(nn.Module):
         return self.attn(query, key, value)
 
 class CANP(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, fixed_var=False):
         super().__init__()
         self.enc = DeterministicEncoder(dim_x, dim_y, dim_hid)
-        self.dec = Decoder(dim_x, dim_y, dim_hid, dim_hid)
+        self.dec = Decoder(dim_x, dim_y, dim_hid, dim_hid, fixed_var)
 
     def forward(self, batch, num_samples=None):
         outs = AttrDict()
@@ -76,11 +76,11 @@ class CANP(nn.Module):
         return py.mean, py.scale
 
 class ANP(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128, fixed_var=False):
         super().__init__()
         self.denc = DeterministicEncoder(dim_x, dim_y, dim_hid)
         self.lenc = LatentEncoder(dim_x, dim_y, dim_hid, dim_lat)
-        self.dec = Decoder(dim_x, dim_y, dim_hid+dim_lat, dim_hid)
+        self.dec = Decoder(dim_x, dim_y, dim_hid+dim_lat, dim_hid, fixed_var)
 
     def forward(self, batch, num_samples=None):
         outs = AttrDict()
@@ -121,17 +121,18 @@ class ANP(nn.Module):
         return py.mean, py.scale
 
 class BANP(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=125, fixed_var=False):
         super().__init__()
         self.denc = DeterministicEncoder(dim_x, dim_y, dim_hid)
         self.benc = BootstrapEncoder(dim_x, dim_y, dim_hid, dim_lat)
-        self.dec = Decoder(dim_x, dim_y, dim_hid+dim_lat, dim_hid)
+        self.dec = Decoder(dim_x, dim_y, dim_hid+dim_lat, dim_hid, fixed_var)
 
     def forward(self, batch, num_samples=None):
         outs = AttrDict()
         if self.training:
             hid = self.denc(batch.xc, batch.yc, batch.x)
-            z = self.benc(batch.x, batch.y, r=0.5)
+            #r = 0.5 + 0.7 * torch.rand([1]).item()
+            z = self.benc(batch.x, batch.y)
             z = torch.stack([z]*hid.shape[-2], -2)
             py = self.dec(torch.cat([hid, z], -1), batch.x)
             outs.ll = py.log_prob(batch.y).sum(-1).mean()
@@ -140,7 +141,8 @@ class BANP(nn.Module):
             K = num_samples or 1
             hid = self.denc(batch.xc, batch.yc, batch.xt)
             hid = torch.stack([hid]*K)
-            z = self.benc(batch.xc, batch.yc, num_samples=K, r=0.5)
+            #r = 0.5 + 0.7 * torch.rand([1]).item()
+            z = self.benc(batch.xc, batch.yc, num_samples=K)
             z = torch.stack([z]*hid.shape[-2], -2)
             xt = torch.stack([batch.xt]*K)
             yt = torch.stack([batch.yt]*K)
@@ -151,7 +153,7 @@ class BANP(nn.Module):
 
     def predict(self, xc, yc, xt, num_samples=None):
         hid = self.denc(xc, yc, xt)
-        z = self.benc(xc, yc, num_samples=num_samples, r=0.5)
+        z = self.benc(xc, yc, num_samples=num_samples)
         if num_samples is not None and num_samples > 1:
             hid = torch.stack([hid]*num_samples)
             xt = torch.stack([xt]*num_samples)

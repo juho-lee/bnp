@@ -2,14 +2,13 @@ import os
 import argparse
 import json
 import time
+from importlib.machinery import SourceFileLoader
 import matplotlib.pyplot as plt
 from attrdict import AttrDict
 
 import torch
 import torch.nn as nn
 
-from models import *
-from data.gp import *
 from log import get_logger, RunningAverage
 
 ROOT = '/nfs/parker/ext01/john/neural_process'
@@ -19,18 +18,20 @@ def main():
 
     parser.add_argument('--gpu', type=str, default='0')
     parser.add_argument('--expid', type=str, default='trial')
-    parser.add_argument('--root', type=str, default=None)
     parser.add_argument('--resume', action='store_true', default=False)
 
-    parser.add_argument('--kernel',
-            choices=['rbf', 'matern', 'periodic'],
-            default='rbf')
-    parser.add_argument('--model', type=str,
-            choices=['cnp', 'np', 'bnp', 'canp', 'anp', 'banp'],
-            default='cnp')
     parser.add_argument('--mode',
             choices=['train', 'eval', 'plot'],
             default='train')
+
+    parser.add_argument('--model', type=str, default='cnp')
+
+    parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
+    parser.add_argument('--heavy_tailed_noise', '-htn', action='store_true', default=False)
+    parser.add_argument('--max_num_points', '-mnp', type=int, default=50)
+
+    parser.add_argument('--train_data', '-td', type=str, default='rbf')
+    parser.add_argument('--train_batch_size', '-tb', type=int, default=100)
 
     parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--num_steps', type=int, default=100000)
@@ -38,12 +39,12 @@ def main():
     parser.add_argument('--eval_freq', type=int, default=5000)
     parser.add_argument('--save_freq', type=int, default=1000)
 
-    parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--max_num_points', type=int, default=50)
-
+    parser.add_argument('--eval_data', '-ed', type=str, default='rbf')
+    parser.add_argument('--eval_batch_size', '-eb', type=int, default=16)
     parser.add_argument('--eval_seed', type=int, default=42)
     parser.add_argument('--num_eval_batches', type=int, default=1000)
     parser.add_argument('--num_eval_samples', type=int, default=100)
+    parser.add_argument('--eval_logfile', type=str, default='eval.log')
 
     parser.add_argument('--plot_seed', type=int, default=None)
     parser.add_argument('--plot_batch_size', type=int, default=16)
@@ -52,30 +53,18 @@ def main():
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    args.root = os.path.join(ROOT, args.model, args.kernel, args.expid) \
-            if args.root is None else os.path.join(ROOT, args.root)
+    args.root = os.path.join(ROOT, args.model, args.train_data, args.expid)
 
-    if args.kernel == 'rbf':
-        kernel = RBFKernel()
-    elif args.kernel == 'matern':
-        kernel = Matern52Kernel()
-    elif args.kernel == 'periodic':
-        kernel = PeriodicKernel()
+    # load data sampler
+    datamodule = args.train_data if args.mode == 'train' else args.eval_data
+    sampler = SourceFileLoader(datamodule,
+            os.path.join('data/{}.py'.format(datamodule)))\
+                    .load_module().load(args)
 
-    sampler = GPSampler(kernel, args.batch_size, args.max_num_points)
-
-    if args.model == 'cnp':
-        model = CNP()
-    elif args.model == 'np':
-        model = NP()
-    elif args.model == 'bnp':
-        model = BNP()
-    elif args.model == 'canp':
-        model = CANP()
-    elif args.model == 'anp':
-        model = ANP()
-    elif args.model == 'banp':
-        model = BANP()
+    # load model
+    model = SourceFileLoader(args.model,
+        os.path.join('models/{}.py'.format(args.model)))\
+                .load_module().load(args)
     model.cuda()
 
     if args.mode == 'train':
@@ -91,6 +80,7 @@ def train(args, sampler, model):
 
     with open(os.path.join(args.root, 'args.json'), 'w') as f:
         json.dump(args.__dict__, f, sort_keys=True, indent=4)
+        print(json.dumps(args.__dict__, sort_keys=True, indent=4))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -114,7 +104,11 @@ def train(args, sampler, model):
     for step in range(start_step, args.num_steps+1):
         model.train()
         optimizer.zero_grad()
-        batch = sampler.sample(device='cuda')
+        batch = sampler.sample(
+            batch_size=args.train_batch_size,
+            max_num_points=args.max_num_points,
+            heavy_tailed_noise=args.heavy_tailed_noise,
+            device='cuda')
         outs = model(batch)
         outs.loss.backward()
         optimizer.step()
@@ -125,7 +119,7 @@ def train(args, sampler, model):
 
         if step % args.print_freq == 0:
             line = '{}:{}:{} step {} lr {:.3e} '.format(
-                    args.model, args.kernel, args.expid, step,
+                    args.model, args.train_data, args.expid, step,
                     optimizer.param_groups[0]['lr'])
             line += ravg.info()
             logger.info(line)
@@ -160,7 +154,11 @@ def eval(args, sampler, model):
     model.eval()
     with torch.no_grad():
         for i in range(args.num_eval_batches):
-            batch = sampler.sample(device='cuda')
+            batch = sampler.sample(
+                    batch_size=args.eval_batch_size,
+                    max_num_points=args.max_num_points,
+                    heavy_tailed_noise=args.heavy_tailed_noise,
+                    device='cuda')
             outs = model(batch, num_samples=args.num_eval_samples)
             for key, val in outs.items():
                 ravg.update(key, val)
@@ -168,11 +166,11 @@ def eval(args, sampler, model):
     torch.manual_seed(time.time())
     torch.cuda.manual_seed(time.time())
 
-    line = '{}:{}:{} eval '.format(args.model, args.kernel, args.expid)
+    line = '{}:{}:{} eval '.format(args.model, args.eval_data, args.expid)
     line += ravg.info()
 
     if args.mode == 'eval':
-        logger = get_logger(os.path.join(args.root, 'eval.log'), mode='w')
+        logger = get_logger(os.path.join(args.root, args.eval_logfile), mode='w')
         logger.info(line)
 
     return line
@@ -190,7 +188,10 @@ def plot(args, sampler, model):
         torch.manual_seed(args.plot_seed)
         torch.cuda.manual_seed(args.plot_seed)
 
-    batch = sampler.sample(batch_size=args.plot_batch_size,
+    batch = sampler.sample(
+            batch_size=args.plot_batch_size,
+            max_num_points=args.max_num_points,
+            heavy_tailed_noise=args.heavy_tailed_noise,
             device='cuda')
 
     xp = torch.linspace(-2, 2, 200).cuda()
@@ -229,7 +230,6 @@ def plot(args, sampler, model):
                     color='orchid', label='target',
                     zorder=mu.shape[0]+1)
             ax.legend()
-
     else:
         for i, ax in enumerate(axes):
             ax.plot(tnp(xp), tnp(mu[i]), color='steelblue', alpha=0.5)
