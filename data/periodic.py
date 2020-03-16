@@ -1,4 +1,6 @@
 import torch
+import math
+from data.gp import GPSampler
 
 class PeriodicKernel(object):
     def __init__(self, p=1.0, sigma_eps=2e-2, max_length=0.6, max_scale=1.0):

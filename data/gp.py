@@ -30,10 +30,10 @@ class GPSampler(object):
         cov = self.kernel(batch.x)
         mean = torch.zeros(batch_size, num_points, device=device)
         batch.y = MultivariateNormal(mean, cov).rsample().unsqueeze(-1)
-        if heavy_tailed_noise:
-            batch.y += 0.1*StudentT(2.0).rsample(batch.y.shape).to(device)
-
         batch.yc = batch.y[:,:num_ctx]
         batch.yt = batch.y[:,num_ctx:]
+
+        if heavy_tailed_noise:
+            batch.yc += 0.1*StudentT(2.0).rsample(batch.yc.shape).to(device)
 
         return batch

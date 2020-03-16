@@ -44,7 +44,6 @@ def main():
     parser.add_argument('--eval_seed', type=int, default=42)
     parser.add_argument('--num_eval_batches', type=int, default=1000)
     parser.add_argument('--num_eval_samples', type=int, default=100)
-    parser.add_argument('--eval_logfile', type=str, default='eval.log')
 
     parser.add_argument('--plot_seed', type=int, default=None)
     parser.add_argument('--plot_batch_size', type=int, default=16)
@@ -170,7 +169,11 @@ def eval(args, sampler, model):
     line += ravg.info()
 
     if args.mode == 'eval':
-        logger = get_logger(os.path.join(args.root, args.eval_logfile), mode='w')
+        filename = '{}_'.format(args.eval_data)
+        if args.heavy_tailed_noise:
+            filename += 'htn_'
+        filename += 'eval.log'
+        logger = get_logger(os.path.join(args.root, filename), mode='w')
         logger.info(line)
 
     return line

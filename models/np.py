@@ -1,35 +1,16 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence
 from attrdict import AttrDict
 import math
 
-from models.cnp import DeterministicEncoder, Decoder
-
-class LatentEncoder(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128):
-        super().__init__()
-        self.pre_mlp = nn.Sequential(
-                nn.Linear(dim_x+dim_y, dim_hid), nn.ReLU(True),
-                nn.Linear(dim_hid, dim_hid), nn.ReLU(True),
-                nn.Linear(dim_hid, dim_hid), nn.ReLU(True),
-                nn.Linear(dim_hid, dim_hid))
-        self.post_mlp = nn.Sequential(
-                nn.Linear(dim_hid, dim_hid), nn.ReLU(True),
-                nn.Linear(dim_hid, 2*dim_lat))
-
-    def forward(self, x, y):
-        hid = self.pre_mlp(torch.cat([x, y], -1)).mean(-2)
-        mu, sigma = self.post_mlp(hid).chunk(2, -1)
-        sigma = 0.1 + 0.9 * torch.sigmoid(sigma)
-        return Normal(mu, sigma)
+from models.modules import DetEncoder, LatEncoder, Decoder
 
 class NP(nn.Module):
     def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128, fixed_var=False):
         super().__init__()
-        self.denc = DeterministicEncoder(dim_x, dim_y, dim_hid)
-        self.lenc = LatentEncoder(dim_x, dim_y, dim_hid, dim_lat)
+        self.denc = DetEncoder(dim_x, dim_y, dim_hid)
+        self.lenc = LatEncoder(dim_x, dim_y, dim_hid, dim_lat)
         self.dec = Decoder(dim_x, dim_y, dim_hid+dim_lat, dim_hid, fixed_var)
 
     def forward(self, batch, num_samples=None):
@@ -55,16 +36,14 @@ class NP(nn.Module):
         return outs
 
     def predict(self, xc, yc, xt, num_samples=None):
+        K = num_samples or 1
         hid = self.denc(xc, yc)
+        hid = torch.stack([hid]*K)
         prior = self.lenc(xc, yc)
-        if num_samples is not None and num_samples > 1:
-            z = prior.rsample([num_samples])
-            hid = torch.stack([hid]*num_samples)
-            xt = torch.stack([xt]*num_samples)
-        else:
-            z = prior.rsample()
+        z = prior.rsample([K])
+        xt = torch.stack([xt]*K)
         py = self.dec(torch.cat([hid, z], -1), xt)
-        return py.mean, py.scale
+        return py.mean.squeeze(0), py.scale.squeeze(0)
 
 def load(args):
     return NP(fixed_var=args.fixed_var)

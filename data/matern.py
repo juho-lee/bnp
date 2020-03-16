@@ -1,5 +1,5 @@
 import torch
-
+import math
 from data.gp import GPSampler
 
 class Matern52Kernel(object):
