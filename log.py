@@ -51,9 +51,9 @@ class RunningAverage(object):
         for key in self.sum.keys():
             val = self.sum[key] / self.cnt[key]
             if type(val) == float:
-                line += '{} {:.4f}, '.format(key, val)
+                line += '{} {:.4f} '.format(key, val)
             else:
-                line += '{} {}, '.format(key, val)
+                line += '{} {} '.format(key, val)
         if show_et:
             line += '({:.3f} secs)'.format(time.time() - self.clock)
         return line

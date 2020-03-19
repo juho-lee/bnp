@@ -25,6 +25,8 @@ def main():
             default='train')
 
     parser.add_argument('--model', type=str, default='cnp')
+    # for bootstrap models
+    parser.add_argument('--r_bs', type=float, default=0.0)
 
     parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
     parser.add_argument('--heavy_tailed_noise', '-htn', action='store_true', default=False)
@@ -40,6 +42,7 @@ def main():
     parser.add_argument('--save_freq', type=int, default=1000)
 
     parser.add_argument('--eval_data', '-ed', type=str, default='rbf')
+    parser.add_argument('--eval_log', '-el', type=str, default=None)
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=16)
     parser.add_argument('--eval_seed', type=int, default=42)
     parser.add_argument('--num_eval_batches', type=int, default=1000)
@@ -169,11 +172,17 @@ def eval(args, sampler, model):
     line += ravg.info()
 
     if args.mode == 'eval':
-        filename = '{}_'.format(args.eval_data)
-        if args.heavy_tailed_noise:
-            filename += 'htn_'
-        filename += 'eval.log'
-        logger = get_logger(os.path.join(args.root, filename), mode='w')
+        if args.eval_log is None:
+            filename = '{}_'.format(args.eval_data)
+            if args.heavy_tailed_noise:
+                filename += 'htn_'
+            filename += 'eval.log'
+        else:
+            filename = args.eval_log
+
+        filename = os.path.join(args.root, filename)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        logger = get_logger(filename, mode='w')
         logger.info(line)
 
     return line
@@ -203,9 +212,10 @@ def plot(args, sampler, model):
     with torch.no_grad():
         outs = model(batch, args.num_plot_samples)
         print(outs.pred_ll.item())
-        mu, sigma = model.predict(batch.xc, batch.yc,
+        py = model.predict(batch.xc, batch.yc,
                 xp[None,:,None].repeat(args.plot_batch_size, 1, 1),
                 num_samples=args.num_plot_samples)
+        mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
     if args.plot_batch_size > 1:
         nrows = max(args.plot_batch_size//4, 1)
