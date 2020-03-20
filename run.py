@@ -48,7 +48,7 @@ def train(args, sampler, model):
     for step in range(start_step, args.num_steps + 1):
         if timer() - start_time > args.time_budget:
             print(f"Stopping at {step=}")
-            ckpt = AttrDict() 
+            ckpt = AttrDict()
             ckpt.model = model.state_dict()
             ckpt.optimizer = optimizer.state_dict()
             ckpt.scheduler = scheduler.state_dict()
@@ -262,11 +262,12 @@ parser.add_argument("--mode", choices=["train", "eval", "plot"], default="train"
 parser.add_argument(
     "--model",
     type=str,
-    choices=["anp", "banp", "bnp", "canp", "cnp", "np"],
+    choices=["anp", "banp", "bnp", "canp", "cnp", "np", "bnp_single"],
     default="cnp",
 )
 # for bootstrap models
 parser.add_argument("--r_bs", type=float, default=0.0)
+parser.add_argument("--dim", type=int, default=128)
 
 parser.add_argument("--fixed_var", "-fv", action="store_true", default=False)
 parser.add_argument("--heavy_tailed_noise", "-htn", action="store_true", default=False)
@@ -274,7 +275,7 @@ parser.add_argument("--heavy_tailed_noise", "-htn", action="store_true", default
 parser.add_argument("--max_num_points", "-mnp", type=int, default=50)
 
 parser.add_argument("--train_data", "-td", type=str, default="rbf")
-parser.add_argument("--train_batch_size", "-tb", type=int, default=100)
+parser.add_argument("--train_batch_size", "-tb", type=int, default=512)
 
 parser.add_argument("--lr", type=float, default=5e-4)
 parser.add_argument("--num_steps", type=int, default=100000)
@@ -299,6 +300,8 @@ args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 args.root = f"result/{args.model}_{args.train_data}_{args.expid}"
 args.root += f"lr{args.lr}_bs{args.train_batch_size}"
+if "bnp" in args.model:
+    args.root += f"_dim{args.dim}"
 writer = SummaryWriter(log_dir=args.root)
 args.epoch = 0
 
