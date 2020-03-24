@@ -2,9 +2,10 @@ import torch
 from torch.distributions import Dirichlet
 import math
 
-def sample_bootstrap(*args, num_samples=None, r_bs=1.0):
+def sample_bootstrap(*args, num_samples=None, r_bs=1.0, r_N=1.0):
     B, N, _ = args[0].shape
     K = num_samples or 1
+    N = max(1, math.ceil(N * r_N))
 
     N_bs = math.ceil(N * r_bs)
     N_fixed = N - N_bs
@@ -30,12 +31,18 @@ def sample_bootstrap(*args, num_samples=None, r_bs=1.0):
                         idxs.repeat(1, 1, 1, arg.shape[-1])).squeeze(0))
         return bs_args
 
-def sample_bayes_bootstrap(*args, num_samples=None, alpha=1.0):
+def random_split(*args, num_samples=None, r=1.0):
     B, N, _ = args[0].shape
     K = num_samples or 1
-    # unnormalized dirichlet -> gamma
-    W = torch._standard_gamma(alpha * torch.ones(K, B, N, 1)).to(args[0].device)
-    bs_args = []
+    N_first = math.ceil(N * r)
+    N_second = N - N_first
+    idxs = torch.rand(K, B, N, 1).argsort(-2).to(args[0].device)
+    idxs_first = idxs[:,:,:N_first]
+    idxs_second = idxs[:,:,N_first:]
+    first, second = [], []
     for arg in args:
-        bs_args.append(arg * W)
-    return bs_args
+        first.append(torch.gather(torch.stack([arg]*K), -2,
+            idxs_first.repeat(1, 1, 1, arg.shape[-1])).squeeze(0))
+        second.append(torch.gather(torch.stack([arg]*K), -2,
+            idxs_second.repeat(1, 1, 1, arg.shape[-1])).squeeze(0))
+    return first, second
