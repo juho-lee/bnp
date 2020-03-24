@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--model', type=str, default='cnp')
     # for bootstrap models
     parser.add_argument('--r_bs', type=float, default=0.0)
+    parser.add_argument('--dim_hid', type=int, default=128)
 
     parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
     parser.add_argument('--heavy_tailed_noise', '-htn', action='store_true', default=False)
@@ -161,7 +162,7 @@ def eval(args, sampler, model):
                     max_num_points=args.max_num_points,
                     heavy_tailed_noise=args.heavy_tailed_noise,
                     device='cuda')
-            outs = model(batch, num_samples=args.num_eval_samples)
+            outs = model(batch, num_samples=args.num_eval_samples, r_bs=args.r_bs)
             for key, val in outs.items():
                 ravg.update(key, val)
 

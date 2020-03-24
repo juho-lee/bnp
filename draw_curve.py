@@ -3,11 +3,11 @@ import os
 import csv
 import numpy as np
 
-cond = 'cnp'
-cond_expid = 'rbs00'
-lat = 'np'
-lat_expid = 'rbs00'
-boot = 'bnp'
+cond = 'canp'
+cond_expid = 'trial'
+lat = 'anp2'
+lat_expid = 'trial'
+boot = 'banp2'
 boot_expid = 'trial'
 
 root = '/mnt/aitrics_ext/ext01/john/neural_process'
@@ -45,7 +45,9 @@ plt.plot(r_bs_vals, lat_lls, label=lat.upper(), marker='d',
 plt.plot(r_bs_vals, boot_lls, label=boot.upper(), marker='h',
         markeredgecolor='mediumseagreen', markerfacecolor='mintcream',
         color='springgreen', markersize=10, linewidth=2)
-plt.legend()
+plt.xlabel(r'$r_{bs}$', fontsize=15)
+plt.ylabel('Pred LL', fontsize=15)
+plt.legend(fontsize=15)
 
 cond_lls = []
 lat_lls = []
@@ -79,7 +81,9 @@ plt.plot(r_bs_vals, lat_lls, label=lat.upper(), marker='d',
 plt.plot(r_bs_vals, boot_lls, label=boot.upper(), marker='h',
         markeredgecolor='mediumseagreen', markerfacecolor='mintcream',
         color='springgreen', markersize=10, linewidth=2)
-plt.legend()
+plt.xlabel(r'$r_{bs}$', fontsize=15)
+plt.ylabel('Pred LL', fontsize=15)
+plt.legend(fontsize=15)
 
 cond_lls = []
 lat_lls = []
@@ -113,7 +117,9 @@ plt.plot(r_bs_vals, lat_lls, label=lat.upper(), marker='d',
 plt.plot(r_bs_vals, boot_lls, label=boot.upper(), marker='h',
         markeredgecolor='mediumseagreen', markerfacecolor='mintcream',
         color='springgreen', markersize=10, linewidth=2)
-plt.legend()
+plt.xlabel(r'$r_{bs}$', fontsize=15)
+plt.ylabel('Pred LL', fontsize=15)
+plt.legend(fontsize=15)
 plt.show()
 
 ## rbf

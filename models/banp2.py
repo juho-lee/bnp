@@ -9,7 +9,7 @@ from models.modules import AttDetEncoder, LatEncoder, Decoder, \
         MultiplicativeInteraction
 from models.bootstrap import sample_bootstrap, random_split
 
-class BANP(nn.Module):
+class BANP2(nn.Module):
     def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128,
             dim_enc=32, fixed_var=False):
         super().__init__()
@@ -57,4 +57,4 @@ class BANP(nn.Module):
         return outs
 
 def load(args):
-    return BANP(fixed_var=args.fixed_var)
+    return BANP2(fixed_var=args.fixed_var)
