@@ -48,6 +48,12 @@ class ANP(nn.Module):
             outs.loss = outs.kld / batch.x.shape[-2] - outs.recon
         else:
             K = num_samples or 1
+            py = self.predict(batch.xc, batch.yc, batch.xc,
+                    num_samples=K, r_bs=r_bs)
+            yc = torch.stack([batch.yc]*K)
+            ctx_ll = py.log_prob(yc).sum(-1).logsumexp(0) - math.log(K)
+            outs.ctx_ll = ctx_ll.mean()
+
             py = self.predict(batch.xc, batch.yc, batch.xt,
                     num_samples=K, r_bs=r_bs)
             yt = torch.stack([batch.yt]*K)

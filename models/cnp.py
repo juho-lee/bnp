@@ -19,7 +19,7 @@ class CNP(nn.Module):
             xt = torch.stack([xt]*K)
             hid = self.enc(bxc, byc)
         else:
-            hid = eslf.enc(xc, yc)
+            hid = self.enc(xc, yc)
         return self.dec(hid, xt)
 
     def forward(self, batch, num_samples=None, r_bs=0.0):
@@ -31,6 +31,10 @@ class CNP(nn.Module):
             outs.loss = -outs.ll
         else:
             K = num_samples or 1
+            py = self.predict(batch.xc, batch.yc, batch.xc,
+                    num_samples=K, r_bs=r_bs)
+            outs.ctx_ll = py.log_prob(batch.yc).sum(-1).mean()
+
             py = self.predict(batch.xc, batch.yc, batch.xt,
                     num_samples=K, r_bs=r_bs)
             outs.pred_ll = py.log_prob(batch.yt).sum(-1).mean()
