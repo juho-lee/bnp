@@ -2,37 +2,26 @@ import os
 import argparse
 import json
 import time
-from importlib.machinery import SourceFileLoader
 import matplotlib.pyplot as plt
 from attrdict import AttrDict
 
 import torch
 import torch.nn as nn
 
-from log import get_logger, RunningAverage
+from utils.misc import load_module
+from utils.log import get_logger, RunningAverage
 
 ROOT = '/nfs/parker/ext01/john/neural_process'
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--gpu', type=str, default='0')
+    parser.add_argument('--mode', choices=['train', 'eval', 'plot'], default='train')
     parser.add_argument('--expid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
-
-    parser.add_argument('--mode',
-            choices=['train', 'eval', 'plot'],
-            default='train')
+    parser.add_argument('--gpu', type=str, default='0')
 
     parser.add_argument('--model', type=str, default='cnp')
-    # for bootstrap models
-    parser.add_argument('--r_bs', type=float, default=0.0)
-    parser.add_argument('--dim_hid', type=int, default=128)
-
-    parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
-    parser.add_argument('--heavy_tailed_noise', '-htn', action='store_true', default=False)
-    parser.add_argument('--max_num_points', '-mnp', type=int, default=50)
-
     parser.add_argument('--train_data', '-td', type=str, default='rbf')
     parser.add_argument('--train_batch_size', '-tb', type=int, default=100)
 
@@ -42,8 +31,8 @@ def main():
     parser.add_argument('--eval_freq', type=int, default=5000)
     parser.add_argument('--save_freq', type=int, default=1000)
 
+    parser.add_argument('--eval_log_file', '-elf', type=str, default=None)
     parser.add_argument('--eval_data', '-ed', type=str, default='rbf')
-    parser.add_argument('--eval_log', '-el', type=str, default=None)
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=16)
     parser.add_argument('--eval_seed', type=int, default=42)
     parser.add_argument('--num_eval_batches', type=int, default=1000)
@@ -53,28 +42,29 @@ def main():
     parser.add_argument('--plot_batch_size', type=int, default=16)
     parser.add_argument('--num_plot_samples', type=int, default=30)
 
-    args = parser.parse_args()
+    parser.add_argument('--max_num_points', '-mnp', type=int, default=50)
+    parser.add_argument('--heavy_tailed_noise', '-tn', action='store_true', default=False)
 
+    args, _ = parser.parse_known_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    args.root = os.path.join(ROOT, args.model, args.train_data, args.expid)
-
-    # load data sampler
-    datamodule = args.train_data if args.mode == 'train' else args.eval_data
-    sampler = SourceFileLoader(datamodule,
-            os.path.join('data/{}.py'.format(datamodule)))\
-                    .load_module().load(args)
+    args.root = os.path.join(ROOT, args.model,
+            args.train_data, args.expid)
 
     # load model
-    model = SourceFileLoader(args.model,
-        os.path.join('models/{}.py'.format(args.model)))\
-                .load_module().load(args)
-    model.cuda()
+    model_file = 'models/{}.py'.format(args.model)
+    model = load_module(model_file).load(args).cuda()
+
+    # load data sampler
+    data_file = 'data/{}.py'.format(
+            args.train_data if args.mode == 'train' \
+                    else args.eval_data)
+    sampler = load_module(data_file).load(args)
 
     if args.mode == 'train':
         train(args, sampler, model)
     elif args.mode == 'eval':
         eval(args, sampler, model)
-    elif args.mode == 'plot':
+    else:
         plot(args, sampler, model)
 
 def train(args, sampler, model):
@@ -103,6 +93,10 @@ def train(args, sampler, model):
 
     logger = get_logger(logfilename)
     ravg = RunningAverage()
+
+    if not args.resume:
+        logger.info('Total number of parameters: {}\n'.format(
+            sum(p.numel() for p in model.parameters())))
 
     for step in range(start_step, args.num_steps+1):
         model.train()
@@ -162,24 +156,25 @@ def eval(args, sampler, model):
                     max_num_points=args.max_num_points,
                     heavy_tailed_noise=args.heavy_tailed_noise,
                     device='cuda')
-            outs = model(batch, num_samples=args.num_eval_samples, r_bs=args.r_bs)
+            outs = model(batch, num_samples=args.num_eval_samples)
             for key, val in outs.items():
                 ravg.update(key, val)
 
     torch.manual_seed(time.time())
     torch.cuda.manual_seed(time.time())
 
-    line = '{}:{}:{} eval '.format(args.model, args.eval_data, args.expid)
+    line = '{}:{}:{} eval '.format(
+            args.model, args.eval_data, args.expid)
     line += ravg.info()
 
     if args.mode == 'eval':
-        if args.eval_log is None:
+        if args.eval_log_file is None:
             filename = '{}_'.format(args.eval_data)
             if args.heavy_tailed_noise:
                 filename += 'htn_'
             filename += 'eval.log'
         else:
-            filename = args.eval_log
+            filename = args.eval_log_file
 
         filename = os.path.join(args.root, filename)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -211,8 +206,9 @@ def plot(args, sampler, model):
     model.eval()
 
     with torch.no_grad():
-        outs = model(batch, args.num_plot_samples)
-        print(outs.pred_ll.item())
+        outs = model(batch, num_samples=args.num_plot_samples)
+        print('ctx_ll {:.4f} tar ll {:.4f}'.format(
+            outs.ctx_ll.item(), outs.tar_ll.item()))
         py = model.predict(batch.xc, batch.yc,
                 xp[None,:,None].repeat(args.plot_batch_size, 1, 1),
                 num_samples=args.num_plot_samples)

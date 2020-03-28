@@ -1,60 +1,61 @@
+import argparse
+import math
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from attrdict import AttrDict
-import math
-import numpy as np
 
-from models.modules import AttDetEncoder, LatEncoder, Decoder, \
-        MultiplicativeInteraction
-from models.bootstrap import sample_bootstrap, random_split
+from utils.sampling import sample_with_partial_replacement
+from utils.misc import add_args
+
+from models.modules import AttEncoder, Decoder
 
 class BANP(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128,
-            dim_enc=32, fixed_var=False):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, fixed_var=False, r_bs=1.0):
         super().__init__()
-        self.denc = AttDetEncoder(dim_x, dim_y, dim_hid)
-        self.benc = LatEncoder(dim_x, dim_y, dim_hid, dim_lat, rand=False)
-        self.mi = MultiplicativeInteraction(dim_hid, dim_lat, dim_enc)
-        self.dec = Decoder(dim_x, dim_y, dim_enc, dim_hid, fixed_var)
+        self.r_bs = r_bs
+        self.denc = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
+        self.benc = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
+        self.dec = Decoder(dim_x=dim_x, dim_y=dim_y, dim_enc=2*dim_hid,
+                dim_hid=dim_hid, fixed_var=fixed_var)
 
-    def predict(self, xc, yc, xt, num_samples=None, r_bs=0.0):
+    def predict(self, xc, yc, xt, num_samples=None):
         K = num_samples or 1
-        if r_bs == 0:
+        if self.training:
+            bxc, byc = sample_with_partial_replacement(
+                    [xc, yc], r=self.r_bs)
+            hid = self.denc(bxc, byc, xt)
+        else:
             hid = self.denc(xc, yc, xt)
+        if K > 1:
             hid = torch.stack([hid]*K)
             xt = torch.stack([xt]*K)
-        else:
-            bxc, byc = sample_bootstrap(xc, yc, r_bs=r_bs, num_samples=K)
-            xt = torch.stack([xt]*K)
-            hid = self.denc(bxc, byc, xt)
-        bxc, byc = sample_bootstrap(xc, yc, num_samples=K)
-        z = self.benc(bxc, byc)
-        z = torch.stack([z]*hid.shape[-2], -2)
-        encoded = self.mi(hid, z)
-        return self.dec(encoded, xt)
+        bxc, byc = sample_with_partial_replacement(
+                [xc, yc], r=self.r_bs, num_samples=K)
+        z = self.benc(bxc, byc, xt)
+        return self.dec(torch.cat([hid, z], -1), xt)
 
-    def forward(self, batch, num_samples=None, r_bs=0.0):
+    def forward(self, batch, num_samples=None):
         outs = AttrDict()
         if self.training:
-            bxc, byc = sample_bootstrap(batch.xc, batch.yc)
-            hid = self.denc(bxc, byc, batch.x)
-            bxc, byc = sample_bootstrap(batch.xc, batch.yc)
-            z = self.benc(bxc, byc)
-            z = torch.stack([z]*hid.shape[-2], -2)
-            encoded = self.mi(hid, z)
-            py = self.dec(encoded, batch.x)
-
+            py = self.predict(batch.xc, batch.yc, batch.x)
             outs.ll = py.log_prob(batch.y).sum(-1).mean()
             outs.loss = -outs.ll
         else:
             K = num_samples or 1
-            py = self.predict(batch.xc, batch.yc, batch.xt,
-                    num_samples=K, r_bs=r_bs)
-            yt = torch.stack([batch.yt]*K)
-            pred_ll = py.log_prob(yt).sum(-1).logsumexp(0) - math.log(K)
-            outs.pred_ll = pred_ll.mean()
+            py = self.predict(batch.xc, batch.yc, batch.x, num_samples=K)
+            y = torch.stack([batch.y]*K)
+            ll = py.log_prob(y).sum(-1).logsumexp(0) - math.log(K)
+            num_ctx = batch.xc.shape[-2]
+            outs.ctx_ll = ll[...,:num_ctx].mean()
+            outs.tar_ll = ll[...,num_ctx:].mean()
         return outs
 
 def load(args):
-    return BANP(fixed_var=args.fixed_var)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dim_hid', type=int, default=128)
+    parser.add_argument('--r_bs', type=float, default=1.0)
+    parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
+    sub_args, _ = parser.parse_known_args()
+    add_args(args, sub_args)
+    return BANP(dim_hid=args.dim_hid, r_bs=args.r_bs, fixed_var=args.fixed_var)

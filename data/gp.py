@@ -34,6 +34,6 @@ class GPSampler(object):
         batch.yt = batch.y[:,num_ctx:]
 
         if heavy_tailed_noise:
-            batch.yc += 0.1*StudentT(2.0).rsample(batch.yc.shape).to(device)
+            batch.y += 0.1*StudentT(2.0).rsample(batch.y.shape).to(device)
 
         return batch
