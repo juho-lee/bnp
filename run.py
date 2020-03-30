@@ -17,7 +17,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', choices=['train', 'eval', 'plot'], default='train')
-    parser.add_argument('--expid', type=str, default='trial')
+    parser.add_argument('--expid', '-eid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
     parser.add_argument('--gpu', type=str, default='0')
 
@@ -45,20 +45,25 @@ def main():
     parser.add_argument('--max_num_points', '-mnp', type=int, default=50)
     parser.add_argument('--heavy_tailed_noise', '-tn', action='store_true', default=False)
 
-    args, _ = parser.parse_known_args()
+    args, cmdline = parser.parse_known_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     args.root = os.path.join(ROOT, args.model,
             args.train_data, args.expid)
-
-    # load model
-    model_file = 'models/{}.py'.format(args.model)
-    model = load_module(model_file).load(args).cuda()
 
     # load data sampler
     data_file = 'data/{}.py'.format(
             args.train_data if args.mode == 'train' \
                     else args.eval_data)
-    sampler = load_module(data_file).load(args)
+    sampler, cmdline = load_module(data_file).load(args, cmdline)
+
+    # load model
+    model_file = 'models/{}.py'.format(args.model)
+    model, cmdline = load_module(model_file).load(args, cmdline)
+
+    if len(cmdline) > 0:
+        raise ValueError('unexpected arguments: {}'.format(cmdline))
+
+    model.cuda()
 
     if args.mode == 'train':
         train(args, sampler, model)

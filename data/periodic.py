@@ -23,5 +23,5 @@ class PeriodicKernel(object):
 
         return cov
 
-def load(args):
-    return GPSampler(PeriodicKernel())
+def load(args, cmdline):
+    return GPSampler(PeriodicKernel()), cmdline

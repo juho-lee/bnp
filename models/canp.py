@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from attrdict import AttrDict
 
-from utils.misc import add_args
+from utils.misc import gen_load_func
 
 from models.modules import AttEncoder, Decoder
 
@@ -18,7 +18,7 @@ class CANP(nn.Module):
     def predict(self, xc, yc, xt, num_samples=None):
         return self.dec(self.enc(xc, yc, xt), xt)
 
-    def forward(self, batch, num_samples=None, r_bs=0.0):
+    def forward(self, batch, num_samples=None):
         outs = AttrDict()
         if self.training:
             py = self.predict(batch.xc, batch.yc, batch.x)
@@ -32,10 +32,7 @@ class CANP(nn.Module):
             outs.tar_ll = ll[...,num_ctx:].mean()
         return outs
 
-def load(args):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dim_hid', type=int, default=128)
-    parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
-    sub_args, _ = parser.parse_known_args()
-    add_args(args, sub_args)
-    return CANP(dim_hid=args.dim_hid, fixed_var=args.fixed_var)
+parser = argparse.ArgumentParser()
+parser.add_argument('--dim_hid', type=int, default=128)
+parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
+load = gen_load_func(parser, CANP)

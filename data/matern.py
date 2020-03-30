@@ -24,5 +24,5 @@ class Matern52Kernel(object):
 
         return cov
 
-def load(args):
-    return GPSampler(Matern52Kernel())
+def load(args, cmdline):
+    return GPSampler(Matern52Kernel()), cmdline

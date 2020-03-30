@@ -23,5 +23,5 @@ class RBFKernel(object):
 
         return cov
 
-def load(args):
-    return GPSampler(RBFKernel())
+def load(args, cmdline):
+    return GPSampler(RBFKernel()), cmdline
