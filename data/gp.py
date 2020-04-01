@@ -13,7 +13,7 @@ class GPSampler(object):
             batch_size=16,
             max_num_points=50,
             x_range=(-2, 2),
-            heavy_tailed_noise=False,
+            heavy_tailed_noise=0.0,
             device='cpu'):
 
         batch = AttrDict()
@@ -33,7 +33,8 @@ class GPSampler(object):
         batch.yc = batch.y[:,:num_ctx]
         batch.yt = batch.y[:,num_ctx:]
 
-        if heavy_tailed_noise:
-            batch.y += 0.1*StudentT(2.0).rsample(batch.y.shape).to(device)
+        if heavy_tailed_noise > 0:
+            batch.y += heavy_tailed_noise * \
+                    StudentT(2.0).rsample(batch.y.shape).to(device)
 
         return batch

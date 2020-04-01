@@ -11,21 +11,19 @@ from utils.sampling import sample_with_replacement, sample_subset
 from models.modules import Encoder, Decoder
 
 class BNP(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128,
-            no_bootstrap=False, validate=False, fixed_var=False):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, r_N=1.0):
         super().__init__()
-        self.bootstrap = not no_bootstrap
-        self.validate = validate
+        self.r_N = r_N
         self.denc = Encoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
         self.benc = Encoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
-        self.dec = Decoder(dim_x=dim_x, dim_y=dim_y, dim_enc=2*dim_hid,
-                dim_hid=dim_hid, fixed_var=fixed_var)
+        self.dec = Decoder(dim_x=dim_x, dim_y=dim_y,
+                dim_enc=2*dim_hid, dim_hid=dim_hid)
 
-    def predict(self, xc, yc, xt, bootstrap=None, num_samples=None):
-        bootstrap = self.bootstrap if bootstrap is None else self.bootstrap
+    def predict(self, xc, yc, xt, bootstrap=True, num_samples=None):
         hid1 = self.denc(xc, yc)
         if bootstrap:
-            bxc, byc = sample_with_replacement([xc, yc], num_samples=num_samples)
+            bxc, byc = sample_with_replacement([xc, yc],
+                    num_samples=num_samples, r_N=self.r_N)
             hid2 = self.benc(bxc, byc)
             if num_samples is not None:
                 hid1 = torch.stack([hid1]*num_samples)
@@ -50,17 +48,21 @@ class BNP(nn.Module):
             num_ctx = batch.xc.shape[-2]
             outs.ctx_ll = ll[...,:num_ctx].mean()
             outs.tar_ll = ll[...,num_ctx:].mean()
-
-            if self.validate:
-                (sub_xc, sub_yc), (sub_xt, sub_yt) = sample_subset(
-                        [batch.xc, batch.yc], r=0.8)
-                py = self.predict(sub_xc, sub_yc, sub_xt, num_samples=num_samples
-
         return outs
+
+    def validate(self, batch, num_splits=10, num_samples=None):
+        log_diffs = []
+        for _ in range(num_splits):
+            (xcc, ycc), (xct, yct) = sample_subset([batch.xc, batch.yc],
+                    r_N=torch.rand(1).item())
+            py = self.predict(xcc, ycc, xct, num_samples=num_samples)
+            ll = logmeanexp(py.log_prob(torch.stack([yct]*num_samples)).sum(-1))
+            py_det = self.predict(xcc, ycc, xct, bootstrap=False)
+            ll_det = py_det.log_prob(yct).sum(-1)
+            log_diffs.append((ll - ll_det).mean())
+        return torch.stack(log_diffs).mean()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dim_hid', type=int, default=128)
-parser.add_argument('--no_bootstrap', '-nbs', action='store_true', default=False)
-parser.add_argument('--validate', '-val', action='store_true', default=False)
-parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
+parser.add_argument('--r_N', type=float, default=1.0)
 load = gen_load_func(parser, BNP)

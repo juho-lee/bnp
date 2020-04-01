@@ -16,7 +16,9 @@ ROOT = '/nfs/parker/ext01/john/neural_process'
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--mode', choices=['train', 'eval', 'plot'], default='train')
+    parser.add_argument('--mode',
+            choices=['train', 'eval', 'plot', 'valid'],
+            default='train')
     parser.add_argument('--expid', '-eid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
     parser.add_argument('--gpu', type=str, default='0')
@@ -43,7 +45,9 @@ def main():
     parser.add_argument('--num_plot_samples', type=int, default=30)
 
     parser.add_argument('--max_num_points', '-mnp', type=int, default=50)
-    parser.add_argument('--heavy_tailed_noise', '-tn', action='store_true', default=False)
+    parser.add_argument('--heavy_tailed_noise', '-tn', type=float, default=0.0)
+
+    parser.add_argument('--valid_log_file', '-vlf', type=str, default=None)
 
     args, cmdline = parser.parse_known_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -69,8 +73,12 @@ def main():
         train(args, sampler, model)
     elif args.mode == 'eval':
         eval(args, sampler, model)
-    else:
+    elif args.mode == 'plot':
         plot(args, sampler, model)
+    elif args.mode == 'valid':
+        if not hasattr(model, 'validate'):
+            raise ValueError('invalid model {} to validate'.format(args.model))
+        validate(args, sampler, model)
 
 def train(args, sampler, model):
     if not os.path.isdir(args.root):
@@ -258,6 +266,50 @@ def plot(args, sampler, model):
 
     plt.tight_layout()
     plt.show()
+
+from tqdm import tqdm
+
+def validate(args, sampler, model):
+    ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
+    model.load_state_dict(ckpt.model)
+    ravg = RunningAverage()
+
+    # fix seed to get consistent eval sets
+    torch.manual_seed(args.eval_seed)
+    torch.cuda.manual_seed(args.eval_seed)
+
+    model.eval()
+    with torch.no_grad():
+        for i in tqdm(range(args.num_eval_batches)):
+            batch = sampler.sample(
+                    batch_size=args.eval_batch_size,
+                    max_num_points=args.max_num_points,
+                    heavy_tailed_noise=args.heavy_tailed_noise,
+                    device='cuda')
+            log_diffs = model.validate(batch, num_samples=args.num_eval_samples)
+            ravg.update('log_diffs', log_diffs)
+
+    torch.manual_seed(time.time())
+    torch.cuda.manual_seed(time.time())
+
+    line = '{}:{}:{} eval '.format(
+            args.model, args.eval_data, args.expid)
+    line += ravg.info()
+
+    if args.valid_log_file is None:
+        filename = '{}_'.format(args.eval_data)
+        if args.heavy_tailed_noise:
+            filename += 'htn_'
+        filename += 'valid.log'
+    else:
+        filename = args.valid_log_file
+
+    filename = os.path.join(args.root, filename)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    logger = get_logger(filename, mode='w')
+    logger.info(line)
+
+    return line
 
 if __name__ == '__main__':
     main()

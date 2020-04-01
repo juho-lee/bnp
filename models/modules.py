@@ -27,25 +27,19 @@ class Encoder(nn.Module):
             return self.mlp_post(hid)
 
 class Decoder(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_enc=128, dim_hid=128, fixed_var=False):
+    def __init__(self, dim_x=1, dim_y=1, dim_enc=128, dim_hid=128):
         super().__init__()
-        self.fixed_var = fixed_var
         self.mlp = nn.Sequential(
                 nn.Linear(dim_x+dim_enc, dim_hid), nn.ReLU(True),
                 nn.Linear(dim_hid, dim_hid), nn.ReLU(True),
-                nn.Linear(dim_hid, dim_y if fixed_var else 2*dim_y))
+                nn.Linear(dim_hid, 2*dim_y))
 
     def forward(self, encoded, x):
         if encoded.dim() < x.dim():
             encoded = torch.stack([encoded]*x.shape[-2], -2)
-        if self.fixed_var:
-            mu = self.mlp(torch.cat([encoded, x], -1))
-            sigma = 2e-2
-            return Normal(mu, sigma)
-        else:
-            mu, sigma = self.mlp(torch.cat([encoded, x], -1)).chunk(2, -1)
-            sigma = 0.1 + 0.9 * F.softplus(sigma)
-            return Normal(mu, sigma)
+        mu, sigma = self.mlp(torch.cat([encoded, x], -1)).chunk(2, -1)
+        sigma = 0.1 + 0.9 * F.softplus(sigma)
+        return Normal(mu, sigma)
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, dim_query, dim_key, dim_value, dim_output, num_heads=8):

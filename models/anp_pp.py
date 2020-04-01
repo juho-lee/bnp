@@ -11,16 +11,15 @@ from utils.misc import gen_load_func, logmeanexp
 from models.modules import AttEncoder, Encoder, Decoder
 
 class ANPpp(nn.Module):
-    def __init__(self, dim_x=1, dim_y=1, dim_hid=128,
-            dim_lat=128, fixed_var=False):
+    def __init__(self, dim_x=1, dim_y=1, dim_hid=128, dim_lat=128):
         super().__init__()
         self.denc = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
         self.llenc = AttEncoder(dim_x=dim_x, dim_y=dim_y,
                 dim_hid=dim_hid, dim_lat=dim_lat)
         self.glenc = Encoder(dim_x=dim_x, dim_y=dim_y,
                 dim_hid=dim_hid, dim_lat=dim_lat)
-        self.dec = Decoder(dim_x=dim_x, dim_y=dim_y, dim_enc=dim_hid+2*dim_lat,
-                dim_hid=dim_hid, fixed_var=fixed_var)
+        self.dec = Decoder(dim_x=dim_x, dim_y=dim_y,
+                dim_enc=dim_hid+2*dim_lat, dim_hid=dim_hid)
 
     def predict(self, xc, yc, xt, pzl=None, pzg=None,  num_samples=None):
         hid = self.denc(xc, yc, xt)
@@ -67,5 +66,4 @@ class ANPpp(nn.Module):
 parser = argparse.ArgumentParser()
 parser.add_argument('--dim_hid', type=int, default=128)
 parser.add_argument('--dim_lat', type=int, default=128)
-parser.add_argument('--fixed_var', '-fv', action='store_true', default=False)
 load = gen_load_func(parser, ANPpp)
