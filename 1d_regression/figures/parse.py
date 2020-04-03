@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import csv
 
-ROOT = '/nfs/parker/ext01/john/neural_process'
+ROOT = '/nfs/parker/ext01/john/neural_process/1d_regression'
 
 def parse(header, filename, num_trials, metrics):
     path = os.path.join(ROOT, header)

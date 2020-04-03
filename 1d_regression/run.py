@@ -11,7 +11,7 @@ import torch.nn as nn
 from utils.misc import load_module
 from utils.log import get_logger, RunningAverage
 
-ROOT = '/nfs/parker/ext01/john/neural_process'
+ROOT = '/nfs/parker/ext01/john/neural_process/1d_regression'
 
 def main():
     parser = argparse.ArgumentParser()

@@ -48,6 +48,20 @@ class BNP(nn.Module):
             num_ctx = batch.xc.shape[-2]
             outs.ctx_ll = ll[...,:num_ctx].mean()
             outs.tar_ll = ll[...,num_ctx:].mean()
+
+            #py_det = self.predict(batch.xc, batch.yc, batch.x, bootstrap=False)
+
+            #mean, var = py.mean, py.scale.pow(2)
+            #v_bs = var.mean(0) + mean.var(dim=0, unbiased=False)
+            #v_bs = v_bs
+            #v = py_det.scale.pow(2)
+
+            #outs.v_bs = v_bs.mean()
+            #outs.v = v.mean()
+            #r = v_bs / (v_bs - v + 1e-5)
+            #outs.r = r.mean()
+            #outs.r_min = r.min()
+
         return outs
 
     def validate(self, batch, num_splits=10, num_samples=None):

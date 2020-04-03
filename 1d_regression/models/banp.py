@@ -9,17 +9,16 @@ from utils.sampling import sample_with_replacement, sample_subset
 from utils.misc import gen_load_func, logmeanexp
 
 from models.bnp import BNP
-from models.modules import AttEncoder, Encoder, Decoder
+from models.modules import AttEncoder, Decoder
 
-class BANPpp(BNP):
+class BANP(BNP):
     def __init__(self, dim_x=1, dim_y=1, dim_hid=128, r_N=1.0):
         nn.Module.__init__(self)
         self.r_N = r_N
         self.denc = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
-        self.benc1 = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
-        self.benc2 = Encoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
+        self.benc = AttEncoder(dim_x=dim_x, dim_y=dim_y, dim_hid=dim_hid)
         self.dec = Decoder(dim_x=dim_x, dim_y=dim_y,
-                dim_enc=3*dim_hid, dim_hid=dim_hid)
+                dim_enc=2*dim_hid, dim_hid=dim_hid)
 
     def predict(self, xc, yc, xt, bootstrap=True, num_samples=None):
         if self.training:
@@ -33,20 +32,13 @@ class BANPpp(BNP):
                 hid1 = torch.stack([hid1]*num_samples)
                 xt = torch.stack([xt]*num_samples)
             bxc, byc = sample_with_replacement([xc, yc],
-                    num_samples=num_samples, r=self.r_bs)
-            hid2 = self.benc1(bxc, byc, xt)
-
-            bxc, byc = sample_with_replacement([xc, yc],
-                    num_samples=num_samples, r=self.r_bs)
-            hid3 = self.benc2(bxc, byc)
+                    num_samples=num_samples, r_N=self.r_N)
+            hid2 = self.benc(bxc, byc, xt)
         else:
-            hid2 = self.benc1(xc, yc)
-            hid3 = self.benc2(xc, yc)
-
-        hid3 = torch.stack([hid3]*hid2.shape[-2], -2)
-        return self.dec(torch.cat([hid1, hid2, hid3], -1), xt)
+            hid2 = self.benc(xc, yc, xt)
+        return self.dec(torch.cat([hid1, hid2], -1), xt)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dim_hid', type=int, default=128)
 parser.add_argument('--r_N', type=float, default=1.0)
-load = gen_load_func(parser, BANPpp)
+load = gen_load_func(parser, BANP)
