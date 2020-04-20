@@ -10,6 +10,7 @@ def get_mean_std(list_):
 
 if __name__ == '__main__':
     list_files = os.listdir('./')
+    list_files.sort()
     print(list_files)
 
     list_oracles = [str_file for str_file in list_files if 'oracle_' in str_file and '.npy' in str_file]
@@ -23,7 +24,7 @@ if __name__ == '__main__':
 
         print(dict_['global'])
 
-        list_regrets_oracle.append(dict_['regrets'])
+        list_regrets_oracle.append(np.squeeze(dict_['yc']) - dict_['global'])
 
     mean_oracle, std_oracle = get_mean_std(list_regrets_oracle)
 
@@ -33,17 +34,19 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-    ax.plot(bx, mean_oracle, lw=4)
+    ax.plot(bx, mean_oracle, lw=4, label='GP (Oracle)')
     ax.fill_between(bx,
         mean_oracle - shade_ * std_oracle,
         mean_oracle + shade_ * std_oracle,
         alpha=0.3
     )
     ax.set_xlim([np.min(bx), np.max(bx)])
-    ax.grid()
     ax.tick_params(labelsize=20)
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Instantaneous regret', fontsize=24)
+
+    ax.grid()
+    ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
 
     plt.show()
 
