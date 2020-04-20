@@ -213,75 +213,136 @@ def oracle(args, sampler, model):
     def tnp(x):
         return x.squeeze().cpu().data.numpy()
 
-    if args.mode == 'bo':
-        ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
-        model.load_state_dict(ckpt.model)
-
-    # plot_seed is used to fix a random seed.
-    if args.plot_seed is not None:
-        torch.manual_seed(args.plot_seed)
-        torch.cuda.manual_seed(args.plot_seed)
-
-    obj_prior = GPPriorSampler(RBFKernel())
-
-    xp = torch.linspace(-2, 2, 1000).cuda()
-    xp_ = xp.unsqueeze(0).unsqueeze(2)
-
-    yp = obj_prior.sample(xp_)
-    min_yp = yp.min()
-    print(min_yp.cpu().numpy())
-
-    model.eval()
-
-    batch = AttrDict()
-
-    indices_permuted = torch.randperm(yp.shape[1])
-    num_init = 5
-
-    batch.x = xp_[:, indices_permuted[:2*num_init], :]
-    batch.y = yp[:, indices_permuted[:2*num_init], :]
-
-    batch.xc = xp_[:, indices_permuted[:num_init], :]
-    batch.yc = yp[:, indices_permuted[:num_init], :]
-
-    batch.xt = xp_[:, indices_permuted[num_init:2*num_init], :]
-    batch.yt = yp[:, indices_permuted[num_init:2*num_init], :]
-
-    X_train = batch.xc.squeeze(0).cpu().numpy()
-    Y_train = batch.yc.squeeze(0).cpu().numpy()
-    X_test = xp_.squeeze(0).cpu().numpy()
-
+    plot_seed = 42
     str_cov = 'se'
+    num_all = 100
+    num_iter = 50
+    num_init = 1
 
-    cov_X_X, inv_cov_X_X, hyps = gp.get_optimized_kernel(X_train, Y_train, None, str_cov, is_fixed_noise=True, debug=False)
+    list_dict = []
 
-    prior_mu_train = gp.get_prior_mu(None, X_train)
-    prior_mu_test = gp.get_prior_mu(None, X_test)
-    cov_X_Xs = covariance.cov_main(str_cov, X_train, X_test, hyps, False)
-    cov_Xs_Xs = covariance.cov_main(str_cov, X_test, X_test, hyps, True)
-    cov_Xs_Xs = (cov_Xs_Xs + cov_Xs_Xs.T) / 2.0
+    for ind_seed in range(1, num_all + 1):
+        plot_seed_ = plot_seed * ind_seed
 
-    mu_ = np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), Y_train - prior_mu_train) + prior_mu_test
-    Sigma_ = cov_Xs_Xs - np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), cov_X_Xs)
-    sigma_ = np.expand_dims(np.sqrt(np.maximum(np.diag(Sigma_), 0.0)), axis=1)
+        if plot_seed_ is not None:
+            torch.manual_seed(plot_seed_)
+            torch.cuda.manual_seed(plot_seed_)
 
-    by = MultivariateNormal(torch.FloatTensor(mu_).squeeze(1), torch.FloatTensor(Sigma_)).rsample().unsqueeze(-1)
+        obj_prior = GPPriorSampler(RBFKernel())
 
-    fig = plt.figure(figsize=(8, 6))
-    ax = plt.gca()
+        xp = torch.linspace(-2, 2, 1000).cuda()
+        xp_ = xp.unsqueeze(0).unsqueeze(2)
 
-    ax.plot(tnp(xp), np.squeeze(mu_), color='steelblue', alpha=0.5)
-    ax.plot(tnp(xp), tnp(by), color='b', alpha=0.5)
-    ax.fill_between(tnp(xp),
-        np.squeeze(mu_ - sigma_),
-        np.squeeze(mu_ + sigma_),
-        color='skyblue', alpha=0.2, linewidth=0.0)
-    ax.scatter(tnp(batch.xc), tnp(batch.yc),
-        color='k', label='context')
-    ax.legend()
+        yp = obj_prior.sample(xp_)
+        min_yp = yp.min()
+        print(min_yp.cpu().numpy())
 
-    plt.tight_layout()
-    plt.show()
+        model.eval()
+
+        batch = AttrDict()
+
+        indices_permuted = torch.randperm(yp.shape[1])
+
+        batch.x = xp_[:, indices_permuted[:2*num_init], :]
+        batch.y = yp[:, indices_permuted[:2*num_init], :]
+
+        batch.xc = xp_[:, indices_permuted[:num_init], :]
+        batch.yc = yp[:, indices_permuted[:num_init], :]
+
+        batch.xt = xp_[:, indices_permuted[num_init:2*num_init], :]
+        batch.yt = yp[:, indices_permuted[num_init:2*num_init], :]
+
+        X_train = batch.xc.squeeze(0).cpu().numpy()
+        Y_train = batch.yc.squeeze(0).cpu().numpy()
+        X_test = xp_.squeeze(0).cpu().numpy()
+
+        list_min = []
+        list_min.append(batch.yc.min().cpu().numpy())
+
+        if os.path.exists('./figures/oracle_{}.npy'.format(plot_seed_)):
+            dict_exp = np.load('./figures/oracle_{}.npy'.format(plot_seed_), allow_pickle=True)
+            dict_exp = dict_exp[()]
+            list_dict.append(dict_exp)
+            print(len(list_dict))
+            continue
+
+        for ind_iter in range(0, num_iter):
+            print('ind_seed {} seed {} iter {}'.format(ind_seed, plot_seed_, ind_iter + 1))
+
+            cov_X_X, inv_cov_X_X, hyps = gp.get_optimized_kernel(X_train, Y_train, None, str_cov, is_fixed_noise=True, debug=False)
+
+            prior_mu_train = gp.get_prior_mu(None, X_train)
+            prior_mu_test = gp.get_prior_mu(None, X_test)
+            cov_X_Xs = covariance.cov_main(str_cov, X_train, X_test, hyps, False)
+            cov_Xs_Xs = covariance.cov_main(str_cov, X_test, X_test, hyps, True)
+            cov_Xs_Xs = (cov_Xs_Xs + cov_Xs_Xs.T) / 2.0
+
+            mu_ = np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), Y_train - prior_mu_train) + prior_mu_test
+            Sigma_ = cov_Xs_Xs - np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), cov_X_Xs)
+            sigma_ = np.expand_dims(np.sqrt(np.maximum(np.diag(Sigma_), 0.0)), axis=1)
+
+            by = MultivariateNormal(torch.FloatTensor(mu_).squeeze(1), torch.FloatTensor(Sigma_)).rsample().unsqueeze(-1)
+            by_ = tnp(by)
+            ind_ = np.argmin(by_)
+
+            x_new = xp[ind_, None, None, None]
+            y_new = yp[:, ind_, None, :]
+
+            batch.x = torch.cat([batch.x, x_new], axis=1)
+            batch.y = torch.cat([batch.y, y_new], axis=1)
+
+            batch.xc = torch.cat([batch.xc, x_new], axis=1)
+            batch.yc = torch.cat([batch.yc, y_new], axis=1)
+
+            X_train = batch.xc.squeeze(0).cpu().numpy()
+            Y_train = batch.yc.squeeze(0).cpu().numpy()
+
+            print(batch.x)
+            print(batch.y)
+            print(batch.xc)
+            print(batch.yc)
+
+            min_cur = batch.yc.min()
+            list_min.append(min_cur.cpu().numpy())
+
+        print(min_yp.cpu().numpy())
+        print(np.array2string(np.array(list_min), separator=','))
+        print(np.array2string(np.array(list_min) - min_yp.cpu().numpy(), separator=','))
+
+        dict_exp = {
+            'seed': plot_seed_,
+            'global': min_yp.cpu().numpy(),
+            'mininums': np.array(list_min),
+            'regrets': np.array(list_min) - min_yp.cpu().numpy(),
+            'xc': X_train,
+            'yc': Y_train,
+            'model': 'oracle',
+            'cov': str_cov,
+        }
+
+        np.save('./figures/oracle_{}.npy'.format(plot_seed_), dict_exp)
+        list_dict.append(dict_exp)
+
+    np.save('./figures/oracle.npy', list_dict)
+
+
+#    fig = plt.figure(figsize=(8, 6))
+#    ax = plt.gca()
+
+#    ax.plot(tnp(xp), np.squeeze(mu_), color='steelblue', alpha=0.5)
+#    ax.plot(tnp(xp), tnp(by), color='b', alpha=0.5)
+#    ax.plot(tnp(xp), tnp(yp), color='g', alpha=0.5)
+
+#    ax.fill_between(tnp(xp),
+#        np.squeeze(mu_ - sigma_),
+#        np.squeeze(mu_ + sigma_),
+#        color='skyblue', alpha=0.2, linewidth=0.0)
+#    ax.scatter(tnp(batch.xc), tnp(batch.yc),
+#        color='k', label='context')
+#    ax.legend()
+
+#    plt.tight_layout()
+#    plt.show()
 
 def bo(args, sampler, model):
 
@@ -311,7 +372,7 @@ def bo(args, sampler, model):
     batch = AttrDict()
 
     indices_permuted = torch.randperm(yp.shape[1])
-    num_init = 5
+    num_init = 1
 
     batch.x = xp_[:, indices_permuted[:2*num_init], :]
     batch.y = yp[:, indices_permuted[:2*num_init], :]
