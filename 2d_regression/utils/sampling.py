@@ -26,3 +26,20 @@ def sample_with_replacement(items, num_samples=None, r_N=1.0):
     Ns = max(1, int(r_N * N))
     idxs = torch.randint(N, size=[K, B, Ns])
     return gather(items, idxs)
+
+def sample_with_partial_replacement(items, num_samples=None, r_bs=1.0):
+    if r_bs == 1.0:
+        return sample_with_replacement(items,
+                num_samples=num_samples)
+    elif r_bs == 0.0:
+        return items
+    else:
+        K = num_samples or 1
+        B, N, _ = items[0].shape
+        N_rep = max(1, int(r_bs * N))
+        idxs = torch.rand(K, B, N).argsort(-1)
+        idxs_with_rep = torch.gather(idxs[..., :N_rep], -1,
+                torch.randint(N_rep, size=[K, B, N_rep]))
+        idxs_without_rep = idxs[..., N_rep:]
+        idxs = torch.cat([idxs_with_rep, idxs_without_rep], -1)
+        return gather(items, idxs)
