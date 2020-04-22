@@ -2,7 +2,6 @@ import os
 import argparse
 import json
 import time
-import matplotlib.pyplot as plt
 from attrdict import AttrDict
 import numpy as np
 from torch.distributions import MultivariateNormal
@@ -22,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode',
-            choices=['train', 'eval', 'oracle', 'bo', 'plot', 'valid'],
+            choices=['train', 'eval', 'oracle', 'bo', 'valid'],
             default='train')
     parser.add_argument('--expid', '-eid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
@@ -82,8 +81,6 @@ def main():
         oracle(args, sampler, model)
     elif args.mode == 'bo':
         bo(args, sampler, model)
-    elif args.mode == 'plot':
-        plot(args, sampler, model)
     elif args.mode == 'valid':
         if not hasattr(model, 'validate'):
             raise ValueError('invalid model {} to validate'.format(args.model))
@@ -214,7 +211,7 @@ def oracle(args, sampler, model):
     str_cov = 'se'
     num_all = 100
     num_iter = 50
-    num_init = 1
+    num_init = 5
 
     list_dict = []
 
@@ -227,7 +224,7 @@ def oracle(args, sampler, model):
 
         obj_prior = GPPriorSampler(RBFKernel())
 
-        xp = torch.linspace(-2, 2, 2000).cuda()
+        xp = torch.linspace(-2, 2, 1000).cuda()
         xp_ = xp.unsqueeze(0).unsqueeze(2)
 
         yp = obj_prior.sample(xp_)
@@ -255,13 +252,6 @@ def oracle(args, sampler, model):
         list_min = []
         list_min.append(batch.yc.min().cpu().numpy())
 
-        if os.path.exists('./figures/oracle_{}.npy'.format(plot_seed_)):
-            dict_exp = np.load('./figures/oracle_{}.npy'.format(plot_seed_), allow_pickle=True)
-            dict_exp = dict_exp[()]
-            list_dict.append(dict_exp)
-            print(len(list_dict))
-            continue
-
         from sklearn.gaussian_process import GaussianProcessRegressor
 
         for ind_iter in range(0, num_iter):
@@ -269,10 +259,8 @@ def oracle(args, sampler, model):
 
             gpr = GaussianProcessRegressor()
             gpr.fit(X_train, Y_train)
-            mu_, sigma_ = gpr.predict(X_test, return_std=True)
-            sigma_ += 1e-5
-
-            Sigma_ = np.diag(sigma_**2)
+            mu_, Sigma_ = gpr.predict(X_test, return_cov=True)
+            Sigma_ += 1e-5 * np.eye(Sigma_.shape[0])
 
             by = MultivariateNormal(torch.FloatTensor(mu_).squeeze(1), torch.FloatTensor(Sigma_)).rsample().unsqueeze(-1)
             by_ = tnp(by)
@@ -326,7 +314,7 @@ def bo(args, sampler, model):
     str_cov = 'se'
     num_all = 100
     num_iter = 50
-    num_init = 1
+    num_init = 5
 
     list_dict = []
 
@@ -339,7 +327,7 @@ def bo(args, sampler, model):
 
         obj_prior = GPPriorSampler(RBFKernel())
 
-        xp = torch.linspace(-2, 2, 2000).cuda()
+        xp = torch.linspace(-2, 2, 1000).cuda()
         xp_ = xp.unsqueeze(0).unsqueeze(2)
 
         yp = obj_prior.sample(xp_)
@@ -368,13 +356,6 @@ def bo(args, sampler, model):
         list_min = []
         list_min.append(batch.yc.min().cpu().numpy())
 
-        if os.path.exists('./figures/{}_{}.npy'.format(args.model, plot_seed_)):
-            dict_exp = np.load('./figures/{}_{}.npy'.format(args.model, plot_seed_), allow_pickle=True)
-            dict_exp = dict_exp[()]
-            list_dict.append(dict_exp)
-            print(len(list_dict))
-            continue
-
         for ind_iter in range(0, num_iter):
             print('ind_seed {} seed {} iter {}'.format(ind_seed, plot_seed_, ind_iter + 1))
 
@@ -388,12 +369,13 @@ def bo(args, sampler, model):
                 mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
             if mu.dim() == 4:
-                mu = torch.mean(mu, axis=0).squeeze(0)
-                sigma = torch.sqrt(torch.mean(sigma**2, axis=0).squeeze(0))
+                mu_ = torch.mean(mu, axis=0).squeeze(0)
+                _mu_ = (mu - mu_.unsqueeze(0)).squeeze(1).squeeze(2)
+                Sigma = torch.sum(torch.einsum('ij,ik->ijk', _mu_, _mu_), axis=0) / (mu.shape[0] - 1) + 1e-5 * torch.eye(mu_.shape[0]).cuda()
 
-            Sigma = sigma**2 * torch.eye(sigma.shape[0]).cuda()
+#            Sigma = sigma**2 * torch.eye(sigma.shape[0]).cuda()
 
-            by = MultivariateNormal(mu.squeeze(1), Sigma).rsample().unsqueeze(-1)
+            by = MultivariateNormal(mu_.squeeze(1), Sigma).rsample().unsqueeze(-1)
             by_ = tnp(by)
             ind_ = np.argmin(by_)
 
@@ -431,77 +413,6 @@ def bo(args, sampler, model):
         list_dict.append(dict_exp)
 
     np.save('./figures/{}.npy'.format(args.model), list_dict)
-
-def plot(args, sampler, model):
-
-    def tnp(x):
-        return x.squeeze().cpu().data.numpy()
-
-    if args.mode == 'plot':
-        ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
-        model.load_state_dict(ckpt.model)
-
-    if args.plot_seed is not None:
-        torch.manual_seed(args.plot_seed)
-        torch.cuda.manual_seed(args.plot_seed)
-
-    batch = sampler.sample(
-            batch_size=args.plot_batch_size,
-            max_num_points=args.max_num_points,
-            heavy_tailed_noise=args.heavy_tailed_noise,
-            device='cuda')
-
-    xp = torch.linspace(-2, 2, 200).cuda()
-    model.eval()
-
-    with torch.no_grad():
-        outs = model(batch, num_samples=args.num_plot_samples)
-        print('ctx_ll {:.4f} tar ll {:.4f}'.format(
-            outs.ctx_ll.item(), outs.tar_ll.item()))
-        py = model.predict(batch.xc, batch.yc,
-                xp[None,:,None].repeat(args.plot_batch_size, 1, 1),
-                num_samples=args.num_plot_samples)
-        mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
-
-    if args.plot_batch_size > 1:
-        nrows = max(args.plot_batch_size//4, 1)
-        ncols = min(4, args.plot_batch_size)
-        fig, axes = plt.subplots(nrows, ncols, figsize=(5*ncols, 5*nrows))
-        axes = axes.flatten()
-    else:
-        fig = plt.figure(figsize=(5, 5))
-        axes = [plt.gca()]
-
-    # multi sample
-    if mu.dim() == 4:
-        for i, ax in enumerate(axes):
-            for s in range(mu.shape[0]):
-                ax.plot(tnp(xp), tnp(mu[s][i]), color='steelblue',
-                        alpha=max(0.5/args.num_plot_samples, 0.1))
-                ax.fill_between(tnp(xp), tnp(mu[s][i])-tnp(sigma[s][i]),
-                        tnp(mu[s][i])+tnp(sigma[s][i]),
-                        color='skyblue',
-                        alpha=max(0.2/args.num_plot_samples, 0.02),
-                        linewidth=0.0)
-            ax.scatter(tnp(batch.xc[i]), tnp(batch.yc[i]),
-                    color='k', label='context', zorder=mu.shape[0]+1)
-            ax.scatter(tnp(batch.xt[i]), tnp(batch.yt[i]),
-                    color='orchid', label='target',
-                    zorder=mu.shape[0]+1)
-            ax.legend()
-    else:
-        for i, ax in enumerate(axes):
-            ax.plot(tnp(xp), tnp(mu[i]), color='steelblue', alpha=0.5)
-            ax.fill_between(tnp(xp), tnp(mu[i]-sigma[i]), tnp(mu[i]+sigma[i]),
-                    color='skyblue', alpha=0.2, linewidth=0.0)
-            ax.scatter(tnp(batch.xc[i]), tnp(batch.yc[i]),
-                    color='k', label='context')
-            ax.scatter(tnp(batch.xt[i]), tnp(batch.yt[i]),
-                    color='orchid', label='target')
-            ax.legend()
-
-    plt.tight_layout()
-    plt.show()
 
 from tqdm import tqdm
 

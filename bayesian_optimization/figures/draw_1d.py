@@ -49,7 +49,7 @@ if __name__ == '__main__':
     mean_anp, std_anp = get_mean_std(regrets_anp)
 
     bx = np.arange(0, mean_np.shape[0])
-    shade_ = 1.96 * 0.2
+    shade_ = 1.96 * 0.1
 
     # Instantaneous regret
     fig = plt.figure(figsize=(8, 6))
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     ax.set_ylabel('Cumulative regret', fontsize=24)
 
     ax.grid()
-    ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
+    ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
 
     plt.show()
 
