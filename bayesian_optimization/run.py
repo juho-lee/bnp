@@ -16,9 +16,6 @@ from utils.log import get_logger, RunningAverage
 from data.gp_prior import GPPriorSampler
 from data.rbf import RBFKernel
 
-from bayeso import gp
-from bayeso import covariance
-
 ROOT = './'
 
 def main():
@@ -230,7 +227,7 @@ def oracle(args, sampler, model):
 
         obj_prior = GPPriorSampler(RBFKernel())
 
-        xp = torch.linspace(-2, 2, 1000).cuda()
+        xp = torch.linspace(-2, 2, 2000).cuda()
         xp_ = xp.unsqueeze(0).unsqueeze(2)
 
         yp = obj_prior.sample(xp_)
@@ -240,7 +237,6 @@ def oracle(args, sampler, model):
         model.eval()
 
         batch = AttrDict()
-
         indices_permuted = torch.randperm(yp.shape[1])
 
         batch.x = xp_[:, indices_permuted[:2*num_init], :]
@@ -266,41 +262,17 @@ def oracle(args, sampler, model):
             print(len(list_dict))
             continue
 
+        from sklearn.gaussian_process import GaussianProcessRegressor
+
         for ind_iter in range(0, num_iter):
             print('ind_seed {} seed {} iter {}'.format(ind_seed, plot_seed_, ind_iter + 1))
 
-            cov_X_X, inv_cov_X_X, hyps = gp.get_optimized_kernel(X_train, Y_train, None, str_cov, is_fixed_noise=True, debug=False)
+            gpr = GaussianProcessRegressor()
+            gpr.fit(X_train, Y_train)
+            mu_, sigma_ = gpr.predict(X_test, return_std=True)
+            sigma_ += 1e-5
 
-            prior_mu_train = gp.get_prior_mu(None, X_train)
-            prior_mu_test = gp.get_prior_mu(None, X_test)
-            cov_X_Xs = covariance.cov_main(str_cov, X_train, X_test, hyps, False)
-            cov_Xs_Xs = covariance.cov_main(str_cov, X_test, X_test, hyps, True)
-
-            list_plot_seed_ = [
-                840,
-                882,
-                1176,
-                1344,
-                1386,
-                1554,
-                1806,
-                2604,
-                2772,
-                3234,
-                3276,
-                3780,
-                3864,
-                3948,
-                3990,
-            ]
-            if plot_seed_ in list_plot_seed_:
-                cov_Xs_Xs = (cov_Xs_Xs + cov_Xs_Xs.T) / 2.0 + 0.001 * np.eye(cov_Xs_Xs.shape[0])
-            else:
-                cov_Xs_Xs = (cov_Xs_Xs + cov_Xs_Xs.T) / 2.0
-
-            mu_ = np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), Y_train - prior_mu_train) + prior_mu_test
-            Sigma_ = cov_Xs_Xs - np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), cov_X_Xs)
-            sigma_ = np.expand_dims(np.sqrt(np.maximum(np.diag(Sigma_), 0.0)), axis=1)
+            Sigma_ = np.diag(sigma_**2)
 
             by = MultivariateNormal(torch.FloatTensor(mu_).squeeze(1), torch.FloatTensor(Sigma_)).rsample().unsqueeze(-1)
             by_ = tnp(by)
@@ -317,11 +289,6 @@ def oracle(args, sampler, model):
 
             X_train = batch.xc.squeeze(0).cpu().numpy()
             Y_train = batch.yc.squeeze(0).cpu().numpy()
-
-            print(batch.x)
-            print(batch.y)
-            print(batch.xc)
-            print(batch.yc)
 
             min_cur = batch.yc.min()
             list_min.append(min_cur.cpu().numpy())
@@ -345,25 +312,6 @@ def oracle(args, sampler, model):
         list_dict.append(dict_exp)
 
     np.save('./figures/oracle.npy', list_dict)
-
-
-#    fig = plt.figure(figsize=(8, 6))
-#    ax = plt.gca()
-
-#    ax.plot(tnp(xp), np.squeeze(mu_), color='steelblue', alpha=0.5)
-#    ax.plot(tnp(xp), tnp(by), color='b', alpha=0.5)
-#    ax.plot(tnp(xp), tnp(yp), color='g', alpha=0.5)
-
-#    ax.fill_between(tnp(xp),
-#        np.squeeze(mu_ - sigma_),
-#        np.squeeze(mu_ + sigma_),
-#        color='skyblue', alpha=0.2, linewidth=0.0)
-#    ax.scatter(tnp(batch.xc), tnp(batch.yc),
-#        color='k', label='context')
-#    ax.legend()
-
-#    plt.tight_layout()
-#    plt.show()
 
 def bo(args, sampler, model):
 
@@ -391,7 +339,7 @@ def bo(args, sampler, model):
 
         obj_prior = GPPriorSampler(RBFKernel())
 
-        xp = torch.linspace(-2, 2, 1000).cuda()
+        xp = torch.linspace(-2, 2, 2000).cuda()
         xp_ = xp.unsqueeze(0).unsqueeze(2)
 
         yp = obj_prior.sample(xp_)
@@ -439,19 +387,11 @@ def bo(args, sampler, model):
                         num_samples=args.num_plot_samples)
                 mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
-            print(mu.shape)
-            print(sigma.shape)
             if mu.dim() == 4:
-                mu = mu[0].squeeze(0)
-                sigma = sigma[0].squeeze(0)
+                mu = torch.mean(mu, axis=0).squeeze(0)
+                sigma = torch.sqrt(torch.mean(sigma**2, axis=0).squeeze(0))
 
-                print(mu.shape)
-                print(sigma.shape)
-
-            Sigma = sigma @ sigma.t() * (torch.ones(sigma.shape[0], sigma.shape[0]) - torch.eye(sigma.shape[0])).cuda() + sigma * torch.eye(sigma.shape[0]).cuda()
-            Sigma += torch.eye(sigma.shape[0]).cuda()
-
-            print(Sigma.shape)
+            Sigma = sigma**2 * torch.eye(sigma.shape[0]).cuda()
 
             by = MultivariateNormal(mu.squeeze(1), Sigma).rsample().unsqueeze(-1)
             by_ = tnp(by)
@@ -468,11 +408,6 @@ def bo(args, sampler, model):
 
             X_train = batch.xc.squeeze(0).cpu().numpy()
             Y_train = batch.yc.squeeze(0).cpu().numpy()
-
-            print(batch.x)
-            print(batch.y)
-            print(batch.xc)
-            print(batch.yc)
 
             min_cur = batch.yc.min()
             list_min.append(min_cur.cpu().numpy())
