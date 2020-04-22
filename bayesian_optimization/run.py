@@ -211,7 +211,7 @@ def oracle(args, sampler, model):
     str_cov = 'se'
     num_all = 100
     num_iter = 50
-    num_init = 5
+    num_init = 1
 
     list_dict = []
 
@@ -314,7 +314,7 @@ def bo(args, sampler, model):
     str_cov = 'se'
     num_all = 100
     num_iter = 50
-    num_init = 5
+    num_init = 1
 
     list_dict = []
 
