@@ -374,79 +374,128 @@ def bo(args, sampler, model):
         ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
         model.load_state_dict(ckpt.model)
 
-    # plot_seed is used to fix a random seed.
-    if args.plot_seed is not None:
-        torch.manual_seed(args.plot_seed)
-        torch.cuda.manual_seed(args.plot_seed)
-
-    obj_prior = GPPriorSampler(RBFKernel())
-
-    xp = torch.linspace(-2, 2, 1000).cuda()
-    xp_ = xp.unsqueeze(0).unsqueeze(2)
-
-    yp = obj_prior.sample(xp_)
-    min_yp = yp.min()
-    print(min_yp.cpu().numpy())
-
-    model.eval()
-
-    batch = AttrDict()
-
-    indices_permuted = torch.randperm(yp.shape[1])
+    plot_seed = 42
+    str_cov = 'se'
+    num_all = 100
+    num_iter = 50
     num_init = 1
 
-    batch.x = xp_[:, indices_permuted[:2*num_init], :]
-    batch.y = yp[:, indices_permuted[:2*num_init], :]
+    list_dict = []
 
-    batch.xc = xp_[:, indices_permuted[:num_init], :]
-    batch.yc = yp[:, indices_permuted[:num_init], :]
+    for ind_seed in range(1, num_all + 1):
+        plot_seed_ = plot_seed * ind_seed
 
-    batch.xt = xp_[:, indices_permuted[num_init:2*num_init], :]
-    batch.yt = yp[:, indices_permuted[num_init:2*num_init], :]
+        if plot_seed_ is not None:
+            torch.manual_seed(plot_seed_)
+            torch.cuda.manual_seed(plot_seed_)
 
-    with torch.no_grad():
-        outs = model(batch, num_samples=args.num_plot_samples)
-        print('ctx_ll {:.4f} tar ll {:.4f}'.format(
-            outs.ctx_ll.item(), outs.tar_ll.item()))
-        py = model.predict(batch.xc, batch.yc,
-                xp[None,:,None].repeat(1, 1, 1),
-                num_samples=args.num_plot_samples)
-        mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
+        obj_prior = GPPriorSampler(RBFKernel())
 
-    fig = plt.figure(figsize=(8, 6))
-    axes = [plt.gca()]
+        xp = torch.linspace(-2, 2, 1000).cuda()
+        xp_ = xp.unsqueeze(0).unsqueeze(2)
 
-    if mu.dim() == 4:
-        for i, ax in enumerate(axes):
-            for s in range(mu.shape[0]):
-                ax.plot(tnp(xp), tnp(mu[s]), color='steelblue',
-                        alpha=max(0.5/args.num_plot_samples, 0.1))
-                ax.fill_between(tnp(xp),
-                        tnp(mu[s]) - tnp(sigma[s]),
-                        tnp(mu[s]) + tnp(sigma[s]),
-                        color='skyblue',
-                        alpha=max(0.2/args.num_plot_samples, 0.02),
-                        linewidth=0.0)
-            ax.scatter(tnp(batch.xc), tnp(batch.yc),
-                    color='k', label='context', zorder=mu.shape[0]+1)
-#            ax.scatter(tnp(batch.xt[i]), tnp(batch.yt[i]),
-#                    color='orchid', label='target',
-#                    zorder=mu.shape[0]+1)
-            ax.legend()
-    else:
-        for i, ax in enumerate(axes):
-            ax.plot(tnp(xp), tnp(mu), color='steelblue', alpha=0.5)
-            ax.fill_between(tnp(xp), tnp(mu - sigma),
-                    tnp(mu + sigma),
-                    color='skyblue', alpha=0.2, linewidth=0.0)
-            ax.scatter(tnp(batch.xc), tnp(batch.yc),
-                    color='k', label='context')
-#            ax.scatter(tnp(batch.xt), tnp(batch.yt),
-#                    color='orchid', label='target')
-            ax.legend()
+        yp = obj_prior.sample(xp_)
+        min_yp = yp.min()
+        print(min_yp.cpu().numpy())
 
-    plt.tight_layout()
-    plt.show()
+        model.eval()
+
+        batch = AttrDict()
+
+        indices_permuted = torch.randperm(yp.shape[1])
+
+        batch.x = xp_[:, indices_permuted[:2*num_init], :]
+        batch.y = yp[:, indices_permuted[:2*num_init], :]
+
+        batch.xc = xp_[:, indices_permuted[:num_init], :]
+        batch.yc = yp[:, indices_permuted[:num_init], :]
+
+        batch.xt = xp_[:, indices_permuted[num_init:2*num_init], :]
+        batch.yt = yp[:, indices_permuted[num_init:2*num_init], :]
+
+        X_train = batch.xc.squeeze(0).cpu().numpy()
+        Y_train = batch.yc.squeeze(0).cpu().numpy()
+        X_test = xp_.squeeze(0).cpu().numpy()
+
+        list_min = []
+        list_min.append(batch.yc.min().cpu().numpy())
+
+        if os.path.exists('./figures/{}_{}.npy'.format(args.model, plot_seed_)):
+            dict_exp = np.load('./figures/{}_{}.npy'.format(args.model, plot_seed_), allow_pickle=True)
+            dict_exp = dict_exp[()]
+            list_dict.append(dict_exp)
+            print(len(list_dict))
+            continue
+
+        for ind_iter in range(0, num_iter):
+            print('ind_seed {} seed {} iter {}'.format(ind_seed, plot_seed_, ind_iter + 1))
+
+            with torch.no_grad():
+                outs = model(batch, num_samples=args.num_plot_samples)
+                print('ctx_ll {:.4f} tar ll {:.4f}'.format(
+                    outs.ctx_ll.item(), outs.tar_ll.item()))
+                py = model.predict(batch.xc, batch.yc,
+                        xp[None,:,None].repeat(1, 1, 1),
+                        num_samples=args.num_plot_samples)
+                mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
+
+            print(mu.shape)
+            print(sigma.shape)
+            if mu.dim() == 4:
+                mu = mu[0].squeeze(0)
+                sigma = sigma[0].squeeze(0)
+
+                print(mu.shape)
+                print(sigma.shape)
+
+            Sigma = sigma @ sigma.t() * (torch.ones(sigma.shape[0], sigma.shape[0]) - torch.eye(sigma.shape[0])).cuda() + sigma * torch.eye(sigma.shape[0]).cuda()
+            Sigma += torch.eye(sigma.shape[0]).cuda()
+
+            print(Sigma.shape)
+
+            by = MultivariateNormal(mu.squeeze(1), Sigma).rsample().unsqueeze(-1)
+            by_ = tnp(by)
+            ind_ = np.argmin(by_)
+
+            x_new = xp[ind_, None, None, None]
+            y_new = yp[:, ind_, None, :]
+
+            batch.x = torch.cat([batch.x, x_new], axis=1)
+            batch.y = torch.cat([batch.y, y_new], axis=1)
+
+            batch.xc = torch.cat([batch.xc, x_new], axis=1)
+            batch.yc = torch.cat([batch.yc, y_new], axis=1)
+
+            X_train = batch.xc.squeeze(0).cpu().numpy()
+            Y_train = batch.yc.squeeze(0).cpu().numpy()
+
+            print(batch.x)
+            print(batch.y)
+            print(batch.xc)
+            print(batch.yc)
+
+            min_cur = batch.yc.min()
+            list_min.append(min_cur.cpu().numpy())
+
+        print(min_yp.cpu().numpy())
+        print(np.array2string(np.array(list_min), separator=','))
+        print(np.array2string(np.array(list_min) - min_yp.cpu().numpy(), separator=','))
+
+        dict_exp = {
+            'seed': plot_seed_,
+            'global': min_yp.cpu().numpy(),
+            'mininums': np.array(list_min),
+            'regrets': np.array(list_min) - min_yp.cpu().numpy(),
+            'xc': X_train,
+            'yc': Y_train,
+            'model': args.model,
+            'cov': str_cov,
+        }
+
+        np.save('./figures/{}_{}.npy'.format(args.model, plot_seed_), dict_exp)
+        list_dict.append(dict_exp)
+
+    np.save('./figures/{}.npy'.format(args.model), list_dict)
 
 def plot(args, sampler, model):
 
