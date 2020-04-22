@@ -29,7 +29,7 @@ if __name__ == '__main__':
     mean_oracle, std_oracle = get_mean_std(list_regrets_oracle)
 
     bx = np.arange(0, mean_oracle.shape[0])
-    shade_ = 1.96
+    shade_ = 1.96 * 0.2
 
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
