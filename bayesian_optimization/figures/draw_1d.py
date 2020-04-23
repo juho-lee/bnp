@@ -9,13 +9,12 @@ def get_mean_std(list_):
     return mean_, std_
 
 def get_regrets(list_files, str_target):
-    list_ = [str_file for str_file in list_files if str_target in str_file and '.npy' in str_file]
+    list_dicts = np.load(str_target, allow_pickle=True)
+    list_dicts = list_dicts[()]
 
     list_regrets = []
 
-    for str_file in list_:
-        dict_ = np.load(str_file, allow_pickle=True)
-        dict_ = dict_[()]
+    for dict_ in list_dicts:
         print(dict_['global'])
 
         list_regrets.append(np.squeeze(dict_['yc']) - dict_['global'])
@@ -39,13 +38,13 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    regrets_oracle, regrets_cum_oracle = get_regrets(list_files, 'oracle_')
+    regrets_oracle, regrets_cum_oracle = get_regrets(list_files, 'oracle.npy')
     mean_oracle, std_oracle = get_mean_std(regrets_oracle)
 
-    regrets_np, regrets_cum_np = get_regrets(list_files, 'np_')
+    regrets_np, regrets_cum_np = get_regrets(list_files, 'np.npy')
     mean_np, std_np = get_mean_std(regrets_np)
 
-    regrets_anp, regrets_cum_anp = get_regrets(list_files, 'anp_')
+    regrets_anp, regrets_cum_anp = get_regrets(list_files, 'anp.npy')
     mean_anp, std_anp = get_mean_std(regrets_anp)
 
     bx = np.arange(0, mean_np.shape[0])

@@ -296,7 +296,6 @@ def oracle(args, sampler, model):
             'cov': str_cov,
         }
 
-        np.save('./figures/oracle_{}.npy'.format(plot_seed_), dict_exp)
         list_dict.append(dict_exp)
 
     np.save('./figures/oracle.npy', list_dict)
@@ -409,7 +408,6 @@ def bo(args, sampler, model):
             'cov': str_cov,
         }
 
-        np.save('./figures/{}_{}.npy'.format(args.model, plot_seed_), dict_exp)
         list_dict.append(dict_exp)
 
     np.save('./figures/{}.npy'.format(args.model), list_dict)
