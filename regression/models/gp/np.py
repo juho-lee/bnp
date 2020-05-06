@@ -42,7 +42,7 @@ class NP(nn.Module):
             py = self.predict(batch.xc, batch.yc, batch.x,
                     z=z, num_samples=num_samples)
             recon = py.log_prob(stack(batch.y, num_samples)).sum(-1)
-            if num_samples is not None:
+            if recon.dim() == 3:
                 outs.recon = logmeanexp(recon).mean()
             else:
                 outs.recon = recon.mean()
