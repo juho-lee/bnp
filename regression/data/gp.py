@@ -85,7 +85,7 @@ class Matern52Kernel(object):
         return cov
 
 class PeriodicKernel(object):
-    def __init__(self, p=1.0, sigma_eps=2e-2, max_length=0.6, max_scale=1.0):
+    def __init__(self, p=0.5, sigma_eps=2e-2, max_length=0.6, max_scale=1.0):
         self.p = p
         self.sigma_eps = sigma_eps
         self.max_length = max_length

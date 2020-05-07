@@ -49,6 +49,7 @@ def main():
     # OOD settings
     parser.add_argument('--ood', action='store_true', default=None)
     parser.add_argument('--t_noise', type=float, default=0.1)
+    parser.add_argument('--pp', type=float, default=0.5)
 
     args, cmdline = parser.parse_known_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -175,7 +176,7 @@ def eval(args, model):
     if args.ood:
         sampler = GPSampler(RBFKernel(), t_noise=args.t_noise)
         line += f'\n{args.model}:{args.expid} rbf tn {args.t_noise} ' + _eval(sampler)
-        sampler = GPSampler(PeriodicKernel())
+        sampler = GPSampler(PeriodicKernel(p=args.pp))
         line += f'\n{args.model}:{args.expid} periodic ' + _eval(sampler)
 
     if args.mode == 'eval':
@@ -264,7 +265,7 @@ def plot(args, model):
         sampler = GPSampler(RBFKernel(), t_noise=args.t_noise)
         _plot(sampler, f'rbf tn {args.t_noise}')
 
-        sampler = GPSampler(PeriodicKernel())
+        sampler = GPSampler(PeriodicKernel(p=args.pp))
         _plot(sampler, 'periodic')
 
     plt.show()
