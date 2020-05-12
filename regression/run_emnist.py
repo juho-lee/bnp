@@ -50,7 +50,7 @@ def main():
 
     # OOD settings
     parser.add_argument('--ood', action='store_true', default=None)
-    parser.add_argument('--t_noise', type=float, default=0.1)
+    parser.add_argument('--t_noise', type=float, default=0.05)
 
     args, cmdline = parser.parse_known_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -158,7 +158,7 @@ def eval(args, model, eval_loader=None):
                 batch_size=args.eval_batch_size,
                 shuffle=False, num_workers=4)
 
-    def _eval(t_noise=None):
+    def _eval(eval_loader, t_noise=None):
         ravg = RunningAverage()
 
         # fix seed to get consistent eval sets
@@ -180,9 +180,16 @@ def eval(args, model, eval_loader=None):
         torch.cuda.manual_seed(time.time())
         return ravg.info()
 
-    line = f'{args.model}:{args.expid} ' + _eval()
+    line = f'{args.model}:{args.expid} ' + _eval(eval_loader)
     if args.ood:
-        line += f'\n{args.model}:{args.expid} tn {args.t_noise} ' + _eval(args.t_noise)
+        line += f'\n{args.model}:{args.expid} tn {args.t_noise} ' \
+                + _eval(eval_loader, t_noise=args.t_noise)
+        eval_ds = EMNIST(train=False, class_range=[10, 47])
+        eval_loader = torch.utils.data.DataLoader(eval_ds,
+                batch_size=args.eval_batch_size,
+                shuffle=False, num_workers=4)
+        line += f'\n{args.model}:{args.expid} unseen ' \
+                + _eval(eval_loader)
 
     if args.mode == 'eval':
         filename = os.path.join(args.root, 'eval.log')

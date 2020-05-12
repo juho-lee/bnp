@@ -7,7 +7,7 @@ from attrdict import AttrDict
 
 from models.modules import PoolingEncoder, Decoder
 
-from utils.misc import gen_load_func
+from utils.misc import gen_load_func, stack
 from utils.sampling import sample_with_replacement as SWR
 
 class CNP(nn.Module):

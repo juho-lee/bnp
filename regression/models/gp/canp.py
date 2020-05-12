@@ -26,6 +26,19 @@ class CANP(CNP):
     def predict(self, xc, yc, xt, num_samples=None, mask=None):
         return self.dec(self.encode(xc, yc, xt, mask=mask), xt)
 
+        #num_samples = 30
+        #py = self.dec(self.encode(xc, yc, xc), xc)
+        #mu, sigma = py.mean, py.scale
+        #res = (yc - mu)/sigma
+        #res = (res - res.mean(-2, keepdim=True))
+        #res = SWR(res, num_samples=num_samples)
+
+        #bxc = stack(xc, num_samples)
+        #byc = mu + sigma*res
+
+        #sxt = stack(xt, num_samples)
+        #return self.dec(self.encode(bxc, byc, sxt), sxt)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--dim_hid', type=int, default=128)
 load = gen_load_func(parser, CANP)
