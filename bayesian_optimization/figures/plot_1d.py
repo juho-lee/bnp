@@ -18,7 +18,6 @@ def get_regrets(list_files, str_target):
 #        print(dict_['global'])
 
         list_regrets.append((np.squeeze(dict_['yc']) - dict_['global']))
-#        list_regrets.append((np.squeeze(dict_['yc']) - dict_['global']) / (np.max(dict_['yc']) - dict_['global']))
 #        list_regrets.append(dict_['regrets'])
 
     regrets = np.array(list_regrets)
