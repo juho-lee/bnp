@@ -40,28 +40,30 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    regrets_oracle, regrets_cum_oracle = get_regrets(list_files, 'oracle.npy')
+    prefix = 'bo_matern_'
+
+    regrets_oracle, regrets_cum_oracle = get_regrets(list_files, '{}oracle.npy'.format(prefix))
     mean_oracle, std_oracle = get_mean_std(regrets_oracle)
 
-    regrets_np, regrets_cum_np = get_regrets(list_files, 'bo_np.npy')
+    regrets_np, regrets_cum_np = get_regrets(list_files, '{}np.npy'.format(prefix))
     mean_np, std_np = get_mean_std(regrets_np)
 
-    regrets_cnp, regrets_cum_cnp = get_regrets(list_files, 'bo_cnp.npy')
+    regrets_cnp, regrets_cum_cnp = get_regrets(list_files, '{}cnp.npy'.format(prefix))
     mean_cnp, std_cnp = get_mean_std(regrets_cnp)
 
-    regrets_anp, regrets_cum_anp = get_regrets(list_files, 'bo_anp.npy')
+    regrets_anp, regrets_cum_anp = get_regrets(list_files, '{}anp.npy'.format(prefix))
     mean_anp, std_anp = get_mean_std(regrets_anp)
 
-    regrets_canp, regrets_cum_canp = get_regrets(list_files, 'bo_canp.npy')
+    regrets_canp, regrets_cum_canp = get_regrets(list_files, '{}canp.npy'.format(prefix))
     mean_canp, std_canp = get_mean_std(regrets_canp)
 
-    regrets_bnp, regrets_cum_bnp = get_regrets(list_files, 'bo_bnp.npy')
+    regrets_bnp, regrets_cum_bnp = get_regrets(list_files, '{}bnp.npy'.format(prefix))
     mean_bnp, std_bnp = get_mean_std(regrets_bnp)
 
-    regrets_banp, regrets_cum_banp = get_regrets(list_files, 'bo_banp.npy')
+    regrets_banp, regrets_cum_banp = get_regrets(list_files, '{}banp.npy'.format(prefix))
     mean_banp, std_banp = get_mean_std(regrets_banp)
 
-    bx = np.arange(0, mean_np.shape[0])
+    bx = np.arange(0, mean_oracle.shape[0])
     shade_ = 1.96 * 0.1
 
     # Instantaneous regret
@@ -81,7 +83,7 @@ if __name__ == '__main__':
     ax.grid()
     ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./instantaneous_wo_attention.pdf',
+    plt.savefig('./{}instantaneous_wo_attention.pdf'.format(prefix),
         format='pdf',
         transparent=True,
         bbox_inches='tight'
@@ -105,7 +107,7 @@ if __name__ == '__main__':
     ax.grid()
     ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./instantaneous_w_attention.pdf',
+    plt.savefig('./{}instantaneous_w_attention.pdf'.format(prefix),
         format='pdf',
         transparent=True,
         bbox_inches='tight'
@@ -113,7 +115,7 @@ if __name__ == '__main__':
     plt.show()
 
 
-#    mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
+    mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
     mean_np, std_np = get_mean_std(regrets_cum_np)
     mean_cnp, std_cnp = get_mean_std(regrets_cum_cnp)
     mean_anp, std_anp = get_mean_std(regrets_cum_anp)
@@ -138,7 +140,7 @@ if __name__ == '__main__':
     ax.grid()
     ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./cumulative_wo_attention.pdf',
+    plt.savefig('./{}cumulative_wo_attention.pdf'.format(prefix),
         format='pdf',
         transparent=True,
         bbox_inches='tight'
@@ -162,7 +164,7 @@ if __name__ == '__main__':
     ax.grid()
     ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./cumulative_w_attention.pdf',
+    plt.savefig('./{}cumulative_w_attention.pdf'.format(prefix),
         format='pdf',
         transparent=True,
         bbox_inches='tight'
