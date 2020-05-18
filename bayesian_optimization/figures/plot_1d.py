@@ -71,9 +71,30 @@ if __name__ == '__main__':
 #    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
     plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'CNP')
+    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
+
+    ax.set_xlim([np.min(bx), np.max(bx)])
+    ax.tick_params(labelsize=20)
+    ax.set_xlabel('Iteration', fontsize=24)
+    ax.set_ylabel('Instantaneous regret', fontsize=24)
+
+    ax.grid()
+    ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
+
+    plt.savefig('./instantaneous_wo_attention.pdf',
+        format='pdf',
+        transparent=True,
+        bbox_inches='tight'
+    )
+    plt.show()
+
+    ## 
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.gca()
+
+#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
-    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
     plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
 
     ax.set_xlim([np.min(bx), np.max(bx)])
@@ -82,17 +103,15 @@ if __name__ == '__main__':
     ax.set_ylabel('Instantaneous regret', fontsize=24)
 
     ax.grid()
-#    ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
-    ax.legend(bbox_to_anchor=(-0.2, 1.02, 1.2, 0.2), loc="lower left",
-        mode="expand",
-        borderaxespad=0, ncol=3, fancybox=False, fontsize=20)
+    ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./instantaneous.pdf',
+    plt.savefig('./instantaneous_w_attention.pdf',
         format='pdf',
         transparent=True,
         bbox_inches='tight'
     )
     plt.show()
+
 
 #    mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
     mean_np, std_np = get_mean_std(regrets_cum_np)
@@ -108,10 +127,31 @@ if __name__ == '__main__':
 
 #    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
-    plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'NP')
+    plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'CNP')
+    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
+
+    ax.set_xlim([np.min(bx), np.max(bx)])
+    ax.tick_params(labelsize=20)
+    ax.set_xlabel('Iteration', fontsize=24)
+    ax.set_ylabel('Cumulative regret', fontsize=24)
+
+    ax.grid()
+    ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
+
+    plt.savefig('./cumulative_wo_attention.pdf',
+        format='pdf',
+        transparent=True,
+        bbox_inches='tight'
+    )
+    plt.show()
+
+    ##
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.gca()
+
+#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
-    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
     plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
 
     ax.set_xlim([np.min(bx), np.max(bx)])
@@ -120,12 +160,9 @@ if __name__ == '__main__':
     ax.set_ylabel('Cumulative regret', fontsize=24)
 
     ax.grid()
-#    ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
-    ax.legend(bbox_to_anchor=(-0.2, 1.02, 1.2, 0.2), loc="lower left",
-        mode="expand",
-        borderaxespad=0, ncol=3, fancybox=False, fontsize=20)
+    ax.legend(loc='upper left', fancybox=False, edgecolor='black', fontsize=20)
 
-    plt.savefig('./cumulative.pdf',
+    plt.savefig('./cumulative_w_attention.pdf',
         format='pdf',
         transparent=True,
         bbox_inches='tight'
