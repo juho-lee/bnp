@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from utils.sampling import sample_with_replacement as SWR
-
 class MultiHeadAttn(nn.Module):
     def __init__(self, dim_q, dim_k, dim_v, dim_out, num_heads=8):
         super().__init__()

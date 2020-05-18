@@ -5,8 +5,10 @@ import time
 import matplotlib.pyplot as plt
 from attrdict import AttrDict
 from tqdm import tqdm
+
 import numpy as np
-from torch.distributions import MultivariateNormal
+import os.path as osp
+import yaml
 
 import torch
 import torch.nn as nn
@@ -16,6 +18,7 @@ from data.gp import *
 import bayeso
 import bayeso.gp as bayesogp
 from bayeso import covariance
+from bayeso import acquisition
 
 from utils.paths import results_path
 from utils.misc import load_module
@@ -59,18 +62,15 @@ def main():
     parser.add_argument('--t_noise', type=float, default=0.1)
     parser.add_argument('--pp', type=float, default=0.5)
 
-    args, cmdline = parser.parse_known_args()
+    args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-    model, cmdline = load_module(f'models/gp/{args.model}.py').load(args, cmdline)
+    model_cls = getattr(load_module(f'models/{args.model}.py'), args.model.upper())
+    with open(f'configs/gp/{args.model}.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    model = model_cls(**config).cuda()
 
-    if not hasattr(args, 'root'):
-        args.root = os.path.join(results_path, 'gp', args.model, args.expid)
-
-    if len(cmdline) > 0:
-        raise ValueError('unexpected arguments: {}'.format(cmdline))
-
-    model.cuda()
+    args.root = osp.join(results_path, 'gp', args.model, args.expid)
 
     if args.mode == 'train':
         train(args, model)
@@ -230,7 +230,7 @@ def oracle(args, model):
 
             print(dict_exp)
             print(dict_exp['global'])
-            print(np.array2string(dict_exp['mininums'], separator=','))
+            print(np.array2string(dict_exp['minima'], separator=','))
             print(np.array2string(dict_exp['regrets'], separator=','))
 
             continue
@@ -279,30 +279,9 @@ def oracle(args, model):
             mu_ = np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), Y_train - prior_mu_train) + prior_mu_test
             Sigma_ = cov_Xs_Xs - np.dot(np.dot(cov_X_Xs.T, inv_cov_X_X), cov_X_Xs)
             sigma_ = np.expand_dims(np.sqrt(np.maximum(np.diag(Sigma_), 0.0)), axis=1)
-            list_noises = [
-                20,
-                21,
-                28,
-                32,
-                33,
-                37,
-                43,
-                62,
-                66,
-                77,
-                78,
-                90,
-                92,
-                94,
-                95,
-            ]
 
-            if ind_seed in list_noises:
-                Sigma_ += 1e-3 * np.eye(Sigma_.shape[0])
-
-            by = MultivariateNormal(torch.FloatTensor(mu_).squeeze(1), torch.FloatTensor(Sigma_)).rsample().unsqueeze(-1)
-            by_ = by.squeeze().cpu().data.numpy()
-            ind_ = np.argmin(by_)
+            acq_vals = -1.0 * acquisition.ei(np.ravel(mu_), np.ravel(sigma_), Y_train)
+            ind_ = np.argmin(acq_vals)
 
             x_new = xp[ind_, None, None, None]
             y_new = yp[:, ind_, None, :]
@@ -327,7 +306,7 @@ def oracle(args, model):
             'seed': plot_seed_,
             'str_cov': str_cov,
             'global': min_yp.cpu().numpy(),
-            'mininums': np.array(list_min),
+            'minima': np.array(list_min),
             'regrets': np.array(list_min) - min_yp.cpu().numpy(),
             'xc': X_train,
             'yc': Y_train,
@@ -407,16 +386,15 @@ def bo(args, model):
                 mu_ = torch.mean(mu, axis=0).squeeze(0)
                 _mu_ = (mu - mu_.unsqueeze(0)).squeeze(1).squeeze(2)
                 Sigma = torch.sum(torch.einsum('ij,ik->ijk', _mu_, _mu_), axis=0) / (mu.shape[0] - 1) + 1e-5 * torch.eye(mu_.shape[0]).cuda()
-            else:
-                mu_ = mu
-                Sigma = sigma**2 * torch.eye(sigma.shape[0]).cuda()
 
-            if args.model == 'anp' and ind_seed in [20, 61, 63, 66, 68, 73, 77, 90]:
-                Sigma += 1e-3 * torch.eye(Sigma.shape[0]).cuda()
+                mu = mu_
+                sigma = torch.diag(Sigma)
 
-            by = MultivariateNormal(mu_.squeeze(1), Sigma).rsample().unsqueeze(-1)
-            by_ = by.squeeze().cpu().data.numpy()
-            ind_ = np.argmin(by_)
+            mu_ = mu.cpu().numpy()
+            sigma_ = sigma.cpu().numpy()
+
+            acq_vals = -1.0 * acquisition.ei(np.ravel(mu_), np.ravel(sigma_), Y_train)
+            ind_ = np.argmin(acq_vals)
 
             x_new = xp[ind_, None, None, None]
             y_new = yp[:, ind_, None, :]
@@ -440,7 +418,7 @@ def bo(args, model):
         dict_exp = {
             'seed': plot_seed_,
             'global': min_yp.cpu().numpy(),
-            'mininums': np.array(list_min),
+            'minima': np.array(list_min),
             'regrets': np.array(list_min) - min_yp.cpu().numpy(),
             'xc': X_train,
             'yc': Y_train,
