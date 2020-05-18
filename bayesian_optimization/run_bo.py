@@ -383,12 +383,11 @@ def bo(args, model):
                 mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
             if mu.dim() == 4:
-                mu_ = torch.mean(mu, axis=0).squeeze(0)
-                _mu_ = (mu - mu_.unsqueeze(0)).squeeze(1).squeeze(2)
-                Sigma = torch.sum(torch.einsum('ij,ik->ijk', _mu_, _mu_), axis=0) / (mu.shape[0] - 1) + 1e-5 * torch.eye(mu_.shape[0]).cuda()
-
-                mu = mu_
-                sigma = torch.diag(Sigma)
+                print(mu.shape, sigma.shape)
+                var = sigma.pow(2).mean(0) + mu.pow(2).mean(0) - mu.mean(0).pow(2)
+                sigma = var.sqrt().squeeze(0)
+                mu = mu.mean(0).squeeze(0)
+                print(mu.shape, sigma.shape)
 
             mu_ = mu.cpu().numpy()
             sigma_ = sigma.cpu().numpy()

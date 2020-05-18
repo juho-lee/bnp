@@ -55,34 +55,26 @@ if __name__ == '__main__':
     regrets_canp, regrets_cum_canp = get_regrets(list_files, 'bo_canp.npy')
     mean_canp, std_canp = get_mean_std(regrets_canp)
 
-    regrets_rbnp_np, regrets_cum_rbnp_np = get_regrets(list_files, 'bo_rbnp_np.npy')
-    mean_rbnp_np, std_rbnp_np = get_mean_std(regrets_rbnp_np)
+    regrets_bnp, regrets_cum_bnp = get_regrets(list_files, 'bo_bnp.npy')
+    mean_bnp, std_bnp = get_mean_std(regrets_bnp)
 
-    regrets_rbnp_cnp, regrets_cum_rbnp_cnp = get_regrets(list_files, 'bo_rbnp_cnp.npy')
-    mean_rbnp_cnp, std_rbnp_cnp = get_mean_std(regrets_rbnp_cnp)
+    regrets_banp, regrets_cum_banp = get_regrets(list_files, 'bo_banp.npy')
+    mean_banp, std_banp = get_mean_std(regrets_banp)
 
-    regrets_rbnp_anp, regrets_cum_rbnp_anp = get_regrets(list_files, 'bo_rbnp_anp.npy')
-    mean_rbnp_anp, std_rbnp_anp = get_mean_std(regrets_rbnp_anp)
-
-    regrets_rbnp_canp, regrets_cum_rbnp_canp = get_regrets(list_files, 'bo_rbnp_canp.npy')
-    mean_rbnp_canp, std_rbnp_canp = get_mean_std(regrets_rbnp_canp)
-
-    bx = np.arange(0, mean_oracle.shape[0])
+    bx = np.arange(0, mean_np.shape[0])
     shade_ = 1.96 * 0.1
 
     # Instantaneous regret
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
     plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'CNP')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
-    plot_exp(ax, bx, mean_rbnp_np, std_rbnp_np, shade_, 'RBNP/NP')
-    plot_exp(ax, bx, mean_rbnp_cnp, std_rbnp_cnp, shade_, 'RBNP/CNP')
-    plot_exp(ax, bx, mean_rbnp_anp, std_rbnp_anp, shade_, 'RBNP/ANP')
-    plot_exp(ax, bx, mean_rbnp_canp, std_rbnp_canp, shade_, 'RBNP/CANP')
+    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
+    plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
 
     ax.set_xlim([np.min(bx), np.max(bx)])
     ax.tick_params(labelsize=20)
@@ -102,29 +94,25 @@ if __name__ == '__main__':
     )
     plt.show()
 
-    mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
+#    mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
     mean_np, std_np = get_mean_std(regrets_cum_np)
     mean_cnp, std_cnp = get_mean_std(regrets_cum_cnp)
     mean_anp, std_anp = get_mean_std(regrets_cum_anp)
     mean_canp, std_canp = get_mean_std(regrets_cum_canp)
-    mean_rbnp_np, std_rbnp_np = get_mean_std(regrets_cum_rbnp_np)
-    mean_rbnp_cnp, std_rbnp_cnp = get_mean_std(regrets_cum_rbnp_cnp)
-    mean_rbnp_anp, std_rbnp_anp = get_mean_std(regrets_cum_rbnp_anp)
-    mean_rbnp_canp, std_rbnp_canp = get_mean_std(regrets_cum_rbnp_canp)
+    mean_bnp, std_bnp = get_mean_std(regrets_cum_bnp)
+    mean_banp, std_banp = get_mean_std(regrets_cum_banp)
 
     # Cumulative regret
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
     plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'NP')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
-    plot_exp(ax, bx, mean_rbnp_np, std_rbnp_np, shade_, 'RBNP/NP')
-    plot_exp(ax, bx, mean_rbnp_cnp, std_rbnp_cnp, shade_, 'RBNP/CNP')
-    plot_exp(ax, bx, mean_rbnp_anp, std_rbnp_anp, shade_, 'RBNP/ANP')
-    plot_exp(ax, bx, mean_rbnp_canp, std_rbnp_canp, shade_, 'RBNP/CANP')
+    plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
+    plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
 
     ax.set_xlim([np.min(bx), np.max(bx)])
     ax.tick_params(labelsize=20)
