@@ -8,7 +8,7 @@ def get_mean_std(list_):
     std_ = np.std(list_, axis=0)
     return mean_, std_
 
-def get_regrets(list_files, str_target):
+def get_regrets(str_target):
     list_dicts = np.load(str_target, allow_pickle=True)
     list_dicts = list_dicts[()]
 
@@ -36,32 +36,32 @@ def plot_exp(ax, bx, mean_, std_, shade_, str_label):
 
 
 if __name__ == '__main__':
-    list_files = os.listdir('./')
+    list_files = os.listdir('./results')
     list_files.sort()
     print(list_files)
 
-    prefix = 'bo_matern_noisy_'
+    prefix = 'bo_periodic_noisy_'
     is_oracle = False
 
-    regrets_oracle, regrets_cum_oracle = get_regrets(list_files, '{}oracle.npy'.format(prefix))
+    regrets_oracle, regrets_cum_oracle = get_regrets('./results/{}oracle.npy'.format(prefix))
     mean_oracle, std_oracle = get_mean_std(regrets_oracle)
 
-    regrets_np, regrets_cum_np = get_regrets(list_files, '{}np.npy'.format(prefix))
+    regrets_np, regrets_cum_np = get_regrets('./results/{}np.npy'.format(prefix))
     mean_np, std_np = get_mean_std(regrets_np)
 
-    regrets_cnp, regrets_cum_cnp = get_regrets(list_files, '{}cnp.npy'.format(prefix))
+    regrets_cnp, regrets_cum_cnp = get_regrets('./results/{}cnp.npy'.format(prefix))
     mean_cnp, std_cnp = get_mean_std(regrets_cnp)
 
-    regrets_anp, regrets_cum_anp = get_regrets(list_files, '{}anp.npy'.format(prefix))
+    regrets_anp, regrets_cum_anp = get_regrets('./results/{}anp.npy'.format(prefix))
     mean_anp, std_anp = get_mean_std(regrets_anp)
 
-    regrets_canp, regrets_cum_canp = get_regrets(list_files, '{}canp.npy'.format(prefix))
+    regrets_canp, regrets_cum_canp = get_regrets('./results/{}canp.npy'.format(prefix))
     mean_canp, std_canp = get_mean_std(regrets_canp)
 
-    regrets_bnp, regrets_cum_bnp = get_regrets(list_files, '{}bnp.npy'.format(prefix))
+    regrets_bnp, regrets_cum_bnp = get_regrets('./results/{}bnp.npy'.format(prefix))
     mean_bnp, std_bnp = get_mean_std(regrets_bnp)
 
-    regrets_banp, regrets_cum_banp = get_regrets(list_files, '{}banp.npy'.format(prefix))
+    regrets_banp, regrets_cum_banp = get_regrets('./results/{}banp.npy'.format(prefix))
     mean_banp, std_banp = get_mean_std(regrets_banp)
 
     bx = np.arange(0, mean_oracle.shape[0])

@@ -17,6 +17,19 @@ from bayeso import acquisition
 from utils.paths import results_path
 from utils.misc import load_module
 
+def get_str_file(path_, str_kernel, str_model, noise, seed=None):
+    if noise is not None:
+        str_all = 'bo_{}_{}_{}'.format(str_kernel, 'noisy', str_model)
+    else:
+        str_all = 'bo_{}_{}'.format(str_kernel, str_model)
+
+    if seed is not None:
+        str_all += '_' + str(seed) + '.npy'
+    else:
+        str_all += '.npy'
+
+    return osp.join(path_, str_all)
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -72,8 +85,8 @@ def oracle(args, model):
             torch.manual_seed(seed_)
             torch.cuda.manual_seed(seed_)
 
-        if os.path.exists('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed)):
-            dict_exp = np.load('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed), allow_pickle=True)
+        if os.path.exists(get_str_file('./results', args.bo_kernel, 'oracle', args.t_noise, seed=ind_seed)):
+            dict_exp = np.load(get_str_file('./results', args.bo_kernel, 'oracle', args.t_noise, seed=ind_seed), allow_pickle=True)
             dict_exp = dict_exp[()]
             list_dict.append(dict_exp)
 
@@ -162,10 +175,10 @@ def oracle(args, model):
             'model': 'oracle',
         }
 
-        np.save('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed), dict_exp)
+        np.save(get_str_file('./results', args.bo_kernel, 'oracle', args.t_noise, seed=ind_seed), dict_exp)
         list_dict.append(dict_exp)
 
-    np.save('./figures/results/bo_{}_oracle.npy'.format(args.bo_kernel), list_dict)
+    np.save(get_str_file('./figures/results', args.bo_kernel, 'oracle', args.t_noise), list_dict)
 
 def bo(args, model):
     if args.mode == 'bo':
@@ -292,7 +305,7 @@ def bo(args, model):
 
         list_dict.append(dict_exp)
 
-    np.save('./figures/results/bo_{}_{}.npy'.format(args.bo_kernel, args.model), list_dict)
+    np.save(get_str_file('./figures/results', args.bo_kernel, args.model, args.t_noise), list_dict)
 
 if __name__ == '__main__':
     main()
