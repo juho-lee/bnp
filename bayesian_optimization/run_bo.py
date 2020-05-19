@@ -29,8 +29,8 @@ def main():
     parser.add_argument('--model', type=str, default='cnp')
 
     parser.add_argument('--bo_num_samples', type=int, default=50)
-    parser.add_argument('--bo_kernel', type=str, default='matern')
-    parser.add_argument('--t_noise', type=float, default=0.1)
+    parser.add_argument('--bo_kernel', type=str, default='rbf')
+    parser.add_argument('--t_noise', type=float, default=None)
 
     args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -56,6 +56,15 @@ def oracle(args, model):
 
     list_dict = []
 
+    if args.bo_kernel == 'rbf':
+        kernel = RBFKernel()
+    elif args.bo_kernel == 'matern':
+        kernel = Matern52Kernel()
+    elif args.bo_kernel == 'periodic':
+        kernel = PeriodicKernel()
+    else:
+        raise ValueError(f'Invalid kernel {args.bo_kernel}')
+
     for ind_seed in range(1, num_all + 1):
         seed_ = seed * ind_seed
 
@@ -63,8 +72,8 @@ def oracle(args, model):
             torch.manual_seed(seed_)
             torch.cuda.manual_seed(seed_)
 
-        if os.path.exists('./results/oracle_{}.npy'.format(ind_seed)):
-            dict_exp = np.load('./results/oracle_{}.npy'.format(ind_seed), allow_pickle=True)
+        if os.path.exists('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed)):
+            dict_exp = np.load('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed), allow_pickle=True)
             dict_exp = dict_exp[()]
             list_dict.append(dict_exp)
 
@@ -75,7 +84,7 @@ def oracle(args, model):
 
             continue
 
-        sampler = GPPriorSampler(RBFKernel())
+        sampler = GPPriorSampler(kernel, t_noise=args.t_noise)
 
         xp = torch.linspace(-2, 2, 1000).cuda()
         xp_ = xp.unsqueeze(0).unsqueeze(2)
@@ -153,10 +162,10 @@ def oracle(args, model):
             'model': 'oracle',
         }
 
-        np.save('./results/oracle_{}.npy'.format(ind_seed), dict_exp)
+        np.save('./results/bo_{}_oracle_{}.npy'.format(args.bo_kernel, ind_seed), dict_exp)
         list_dict.append(dict_exp)
 
-    np.save('./figures/oracle.npy', list_dict)
+    np.save('./figures/results/bo_{}_oracle.npy'.format(args.bo_kernel), list_dict)
 
 def bo(args, model):
     if args.mode == 'bo':
@@ -283,7 +292,7 @@ def bo(args, model):
 
         list_dict.append(dict_exp)
 
-    np.save('./figures/{}.npy'.format(args.model), list_dict)
+    np.save('./figures/results/bo_{}_{}.npy'.format(args.bo_kernel, args.model), list_dict)
 
 if __name__ == '__main__':
     main()
