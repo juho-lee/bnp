@@ -29,8 +29,8 @@ def main():
     parser.add_argument('--model', type=str, default='cnp')
 
     parser.add_argument('--bo_num_samples', type=int, default=50)
-    parser.add_argument('--bo_kernel', type=str, default='rbf')
-    parser.add_argument('--t_noise', type=float, default=None)
+    parser.add_argument('--bo_kernel', type=str, default='matern')
+    parser.add_argument('--t_noise', type=float, default=0.1)
 
     args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -230,8 +230,8 @@ def bo(args, model):
                         num_samples=args.bo_num_samples)
                 mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
-
             if mu.dim() == 4:
+                print(mu.shape, sigma.shape)
                 acq_vals = []
 
                 for ind_mu in range(0, mu.shape[0]):

@@ -14,7 +14,7 @@ class GPPriorSampler(object):
 
     def sample(self,
             bx,
-            device='cpu'):
+            device='cuda:0'):
         # bx: 1 * num_points * 1
 
         # 1 * num_points * num_points
