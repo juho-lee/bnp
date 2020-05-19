@@ -28,8 +28,8 @@ def main():
 
     parser.add_argument('--model', type=str, default='cnp')
 
-    parser.add_argument('--bo_num_samples', type=int, default=30)
-    parser.add_argument('--bo_kernel', type=str, default='matern')
+    parser.add_argument('--bo_num_samples', type=int, default=50)
+    parser.add_argument('--bo_kernel', type=str, default='rbf')
     parser.add_argument('--t_noise', type=float, default=None)
 
     args = parser.parse_args()
@@ -48,7 +48,6 @@ def main():
         bo(args, model)
 
 def oracle(args, model):
-
     seed = 42
     num_all = 100
     num_iter = 50
@@ -160,7 +159,6 @@ def oracle(args, model):
     np.save('./figures/oracle.npy', list_dict)
 
 def bo(args, model):
-
     if args.mode == 'bo':
         ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
         model.load_state_dict(ckpt.model)
@@ -232,17 +230,25 @@ def bo(args, model):
                         num_samples=args.bo_num_samples)
                 mu, sigma = py.mean.squeeze(0), py.scale.squeeze(0)
 
+
             if mu.dim() == 4:
-                print(mu.shape, sigma.shape)
-                var = sigma.pow(2).mean(0) + mu.pow(2).mean(0) - mu.mean(0).pow(2)
-                sigma = var.sqrt().squeeze(0)
-                mu = mu.mean(0).squeeze(0)
-                print(mu.shape, sigma.shape)
+                acq_vals = []
 
-            mu_ = mu.cpu().numpy()
-            sigma_ = sigma.cpu().numpy()
+                for ind_mu in range(0, mu.shape[0]):
+                    acq_vals_ = -1.0 * acquisition.ei(np.ravel(mu[ind_mu].cpu().numpy()), np.ravel(sigma[ind_mu].cpu().numpy()), Y_train)
+                    acq_vals.append(acq_vals_)
 
-            acq_vals = -1.0 * acquisition.ei(np.ravel(mu_), np.ravel(sigma_), Y_train)
+                acq_vals = np.mean(acq_vals, axis=0)
+            else:
+                mu_ = mu.cpu().numpy()
+                sigma_ = sigma.cpu().numpy()
+
+                acq_vals = -1.0 * acquisition.ei(np.ravel(mu_), np.ravel(sigma_), Y_train)
+
+#                var = sigma.pow(2).mean(0) + mu.pow(2).mean(0) - mu.mean(0).pow(2)
+#                sigma = var.sqrt().squeeze(0)
+#                mu = mu.mean(0).squeeze(0)
+
             ind_ = np.argmin(acq_vals)
 
             x_new = xp[ind_, None, None, None]

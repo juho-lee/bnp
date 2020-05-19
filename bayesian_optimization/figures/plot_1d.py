@@ -40,7 +40,7 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    prefix = 'bo_matern_'
+    prefix = 'bo_'
 
     regrets_oracle, regrets_cum_oracle = get_regrets(list_files, '{}oracle.npy'.format(prefix))
     mean_oracle, std_oracle = get_mean_std(regrets_oracle)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
     plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'CNP')
     plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
     plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_np, std_np, shade_, 'NP')
     plot_exp(ax, bx, mean_cnp, std_cnp, shade_, 'CNP')
     plot_exp(ax, bx, mean_bnp, std_bnp, shade_, 'BNP')
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     fig = plt.figure(figsize=(8, 6))
     ax = fig.gca()
 
-#    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(ax, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
     plot_exp(ax, bx, mean_anp, std_anp, shade_, 'ANP')
     plot_exp(ax, bx, mean_canp, std_canp, shade_, 'CANP')
     plot_exp(ax, bx, mean_banp, std_banp, shade_, 'BANP')
