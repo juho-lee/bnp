@@ -41,8 +41,9 @@ def main():
 
     parser.add_argument('--model', type=str, default='cnp')
 
-    parser.add_argument('--bo_num_samples', type=int, default=50)
-    parser.add_argument('--bo_kernel', type=str, default='rbf')
+    parser.add_argument('--bo_num_samples', type=int, default=200)
+    parser.add_argument('--bo_num_init', type=int, default=1)
+    parser.add_argument('--bo_kernel', type=str, default='periodic')
     parser.add_argument('--t_noise', type=float, default=None)
 
     args = parser.parse_args()
@@ -64,7 +65,7 @@ def oracle(args, model):
     seed = 42
     num_all = 100
     num_iter = 50
-    num_init = 1
+    num_init = args.bo_num_init
     str_cov = 'se'
 
     list_dict = []
@@ -130,7 +131,7 @@ def oracle(args, model):
         for ind_iter in range(0, num_iter):
             print('ind_seed {} seed {} iter {}'.format(ind_seed, seed_, ind_iter + 1))
 
-            cov_X_X, inv_cov_X_X, hyps = bayesogp.get_optimized_kernel(X_train, Y_train, None, str_cov, is_fixed_noise=True, debug=False)
+            cov_X_X, inv_cov_X_X, hyps = bayesogp.get_optimized_kernel(X_train, Y_train, None, str_cov, is_fixed_noise=False, debug=False)
 
             prior_mu_train = bayesogp.get_prior_mu(None, X_train)
             prior_mu_test = bayesogp.get_prior_mu(None, X_test)
@@ -198,7 +199,7 @@ def bo(args, model):
     str_cov = 'se'
     num_all = 100
     num_iter = 50
-    num_init = 1
+    num_init = args.bo_num_init
 
     list_dict = []
 
@@ -254,13 +255,21 @@ def bo(args, model):
 
             if mu.dim() == 4:
                 print(mu.shape, sigma.shape)
-                acq_vals = []
+                var = sigma.pow(2).mean(0) + mu.pow(2).mean(0) - mu.mean(0).pow(2)
+                sigma = var.sqrt().squeeze(0)
+                mu = mu.mean(0).squeeze(0)
+                mu_ = mu.cpu().numpy()
+                sigma_ = sigma.cpu().numpy()
 
-                for ind_mu in range(0, mu.shape[0]):
-                    acq_vals_ = -1.0 * acquisition.ei(np.ravel(mu[ind_mu].cpu().numpy()), np.ravel(sigma[ind_mu].cpu().numpy()), Y_train)
-                    acq_vals.append(acq_vals_)
+                acq_vals = -1.0 * acquisition.ei(np.ravel(mu_), np.ravel(sigma_), Y_train)
 
-                acq_vals = np.mean(acq_vals, axis=0)
+#                acq_vals = []
+
+#                for ind_mu in range(0, mu.shape[0]):
+#                    acq_vals_ = -1.0 * acquisition.ei(np.ravel(mu[ind_mu].cpu().numpy()), np.ravel(sigma[ind_mu].cpu().numpy()), Y_train)
+#                    acq_vals.append(acq_vals_)
+
+#                acq_vals = np.mean(acq_vals, axis=0)
             else:
                 mu_ = mu.cpu().numpy()
                 sigma_ = sigma.cpu().numpy()
