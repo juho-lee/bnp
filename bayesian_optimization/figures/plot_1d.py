@@ -40,7 +40,7 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    prefix = 'bo_rbf_'
+    prefix = 'bo_rbf_noisy_'
     is_oracle = True
 
     regrets_oracle, regrets_cum_oracle = get_regrets('./results/{}oracle.npy'.format(prefix))
