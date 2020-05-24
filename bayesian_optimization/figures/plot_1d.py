@@ -27,11 +27,12 @@ def get_regrets(str_target):
     return regrets, regrets_cum
 
 def plot_exp(ax, bx, mean_, std_, shade_, str_label):
+#    ax.errorbar(bx, mean_, yerr=shade_ * std_, lw=3, label=str_label, ls='-')
     ax.plot(bx, mean_, lw=3, label=str_label)
     ax.fill_between(bx,
         mean_ - shade_ * std_,
         mean_ + shade_ * std_,
-        alpha=0.3
+        alpha=0.2
     )
 
 
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    prefix = 'bo_rbf_noisy_'
+    prefix = 'bo_rbf_'
     is_oracle = True
 
     regrets_oracle, regrets_cum_oracle = get_regrets('./results/{}oracle.npy'.format(prefix))
@@ -90,12 +91,12 @@ if __name__ == '__main__':
     mean_banp, std_banp = get_mean_std(regrets_banp)
 
     bx = np.arange(0, mean_np.shape[0])
-    shade_ = 1.96 * 0.075
+    shade_ = 1.96 * 0.08
     print(bx.shape)
     print(mean_np.shape)
 
     # Instantaneous regret
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 7))
     ax = fig.gca()
 
     if is_oracle:
@@ -108,6 +109,13 @@ if __name__ == '__main__':
     ax.tick_params(labelsize=20)
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Minimum simple regret', fontsize=24)
+
+    if prefix == 'bo_rbf_':
+        ax.set_title('RBF (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_rbf_noisy_':
+        ax.set_title('RBF+$t$-noise (NP, CNP, BNP)', fontsize=24)
+    else:
+        pass
 
     ax.grid()
     ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
@@ -121,7 +129,7 @@ if __name__ == '__main__':
     plt.show()
 
     ## 
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 7))
     ax = fig.gca()
 
     if is_oracle:
@@ -135,6 +143,13 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Minimum simple regret', fontsize=24)
 
+    if prefix == 'bo_rbf_':
+        ax.set_title('RBF (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_rbf_noisy_':
+        ax.set_title('RBF+$t$-noise (ANP, CANP, BANP)', fontsize=24)
+    else:
+        pass
+
     ax.grid()
     ax.legend(loc='upper right', fancybox=False, edgecolor='black', fontsize=20)
 #    ax.set_yscale('symlog')
@@ -147,6 +162,8 @@ if __name__ == '__main__':
     plt.show()
 
 
+    shade_ = 1.96 * 0.04
+
     mean_oracle, std_oracle = get_mean_std(regrets_cum_oracle)
     mean_np, std_np = get_mean_std(regrets_cum_np)
     mean_cnp, std_cnp = get_mean_std(regrets_cum_cnp)
@@ -156,7 +173,7 @@ if __name__ == '__main__':
     mean_banp, std_banp = get_mean_std(regrets_cum_banp)
 
     # Cumulative regret
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 7))
     ax = fig.gca()
 
     if is_oracle:
@@ -170,6 +187,13 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Cumulative minimum regret', fontsize=24)
 
+    if prefix == 'bo_rbf_':
+        ax.set_title('RBF (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_rbf_noisy_':
+        ax.set_title('RBF+$t$-noise (NP, CNP, BNP)', fontsize=24)
+    else:
+        pass
+
     ax.grid()
     ax.legend(loc='lower right', fancybox=False, edgecolor='black', fontsize=20)
 #    ax.set_yscale('symlog')
@@ -182,7 +206,7 @@ if __name__ == '__main__':
     plt.show()
 
     ##
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 7))
     ax = fig.gca()
 
     if is_oracle:
@@ -195,6 +219,13 @@ if __name__ == '__main__':
     ax.tick_params(labelsize=20)
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Cumulative minimum regret', fontsize=24)
+
+    if prefix == 'bo_rbf_':
+        ax.set_title('RBF (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_rbf_noisy_':
+        ax.set_title('RBF+$t$-noise (ANP, CANP, BANP)', fontsize=24)
+    else:
+        pass
 
     ax.grid()
     ax.legend(loc='lower right', fancybox=False, edgecolor='black', fontsize=20)
