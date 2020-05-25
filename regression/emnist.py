@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from data.image import img_to_task, task_to_img
 from data.emnist import EMNIST
-from data.fmnist import FMNIST
 
 from utils.misc import load_module
 from utils.paths import results_path

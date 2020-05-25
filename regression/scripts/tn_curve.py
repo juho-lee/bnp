@@ -15,7 +15,7 @@ def get_results(data, models, expids, logfiles):
     return results
 
 def plot(results):
-    markers = ['o', 's', 'd', 'h']
+    markers = ['o', 's', 'd', 'h', '*', '^']
     plt.figure()
     for marker, model in zip(markers, results.keys()):
         mean, std = np.mean(results[model], 0), np.std(results[model], 0)
@@ -26,7 +26,7 @@ def plot(results):
                 markersize=8,
                 markerfacecolor='white')
     plt.grid(True, alpha=0.05)
-    plt.legend(fontsize=20)
+    plt.legend(fontsize=20, labelspacing=0.2)
     plt.xlabel(r'$\gamma$', fontsize=20)
     plt.ylabel('target ll', fontsize=20)
     plt.xticks(fontsize=15)
@@ -41,6 +41,7 @@ if __name__ == '__main__':
             default=['cnp', 'np', 'bnp'])
     parser.add_argument('--expids', type=str, nargs='*',
             default=['run1', 'run2', 'run3', 'run4', 'run5'])
+    parser.add_argument('--filename', type=str, default=None)
     args = parser.parse_args()
 
     if args.data == 'gp':
@@ -55,5 +56,11 @@ if __name__ == '__main__':
         gam = [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
         logfiles = [f'eval_{tn}.log' for tn in gam]
         plot(get_results('celeba', args.models, args.expids, logfiles))
+
+    if not osp.isdir('figures'):
+        os.makedirs('figures')
+
+    filename = args.filename
+    plt.savefig(f'figures/{args.filename}.pdf', bbox_inches='tight')
 
     plt.show()

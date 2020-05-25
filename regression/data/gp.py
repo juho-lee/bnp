@@ -37,7 +37,11 @@ class GPSampler(object):
         batch.yt = batch.y[:,num_ctx:]
 
         if self.t_noise is not None:
-            batch.y += self.t_noise * StudentT(2.1).rsample(batch.y.shape).to(device)
+            if self.t_noise == -1:
+                t_noise = 0.15 * torch.rand(batch.y.shape).to(device)
+            else:
+                t_noise = self.t_noise
+            batch.y += t_noise * StudentT(2.1).rsample(batch.y.shape).to(device)
         return batch
 
 class RBFKernel(object):

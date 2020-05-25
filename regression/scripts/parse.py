@@ -37,6 +37,9 @@ if __name__ == '__main__':
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} '
         ctx, tar = parse('gp', args.model, args.expids, 'eval_periodic.log')
         line += f'& \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
+        line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} '
+        ctx, tar = parse('gp', args.model, args.expids, 'eval_rbf_tn_-1.0.log')
+        line += f'& \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} \\\\'
     elif args.data == 'emnist':
         ctx, tar = parse('emnist', args.model, args.expids, 'eval_0-10.log')
@@ -45,15 +48,22 @@ if __name__ == '__main__':
         ctx, tar = parse('emnist', args.model, args.expids, 'eval_10-47.log')
         line += f'& \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} '
-        ctx, tar = parse('emnist', args.model, args.expids, 'eval_0-10_0.05.log')
+        ctx, tar = parse('emnist', args.model, args.expids, 'eval_0-10_-1.0.log')
         line += f'& \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} \\\\'
     elif args.data == 'celeba':
         ctx, tar = parse('celeba', args.model, args.expids, 'eval.log')
         line = f'{args.model.upper()} & \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} '
-        ctx, tar = parse('celeba', args.model, args.expids, 'eval_0.05.log')
+        ctx, tar = parse('celeba', args.model, args.expids, 'eval_-1.0.log')
         line += f'& \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
+        line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} \\\\'
+    elif args.data == 'lotka_volterra':
+        ctx, tar = parse('lotka_volterra', args.model, args.expids, 'eval.log')
+        line = f'{args.model.upper()} & \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
+        line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} '
+        ctx, tar = parse('lotka_volterra', args.model, args.expids, 'hare_lynx.log')
+        line += f' & \msd{{{ctx.mean():.3f}}}{{{ctx.std():.3f}}} '
         line += f'& \msd{{{tar.mean():.3f}}}{{{tar.std():.3f}}} \\\\'
     else:
         raise ValueError(f'Invalid data {args.data}')
