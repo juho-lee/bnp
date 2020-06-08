@@ -4,6 +4,7 @@ Codes for NeurIPS 2020 submission bootstrapping neural process
 
 * Requirements
 ```
+python >= 3.8.0
 torch >= 1.4.0
 pyyaml
 attrdict
