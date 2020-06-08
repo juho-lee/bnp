@@ -1,6 +1,6 @@
 import os
 
-ROOT = '/nfs/lang/ext01/john'
+ROOT = 'set_your_own_root'
 
 evalsets_path = os.path.join(ROOT, 'bnp', 'evalsets')
 datasets_path = os.path.join(ROOT, 'datasets')
