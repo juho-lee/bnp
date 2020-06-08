@@ -43,7 +43,7 @@ def main():
 
     parser.add_argument('--bo_num_samples', type=int, default=200)
     parser.add_argument('--bo_num_init', type=int, default=1)
-    parser.add_argument('--bo_kernel', type=str, default='periodic')
+    parser.add_argument('--bo_kernel', type=str, default='rbf')
     parser.add_argument('--t_noise', type=float, default=None)
 
     args = parser.parse_args()
