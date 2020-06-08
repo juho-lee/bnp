@@ -110,8 +110,31 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Minimum simple regret', fontsize=24)
 
+    ##
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+    axins = zoomed_inset_axes(ax, 1.5, loc='center')
+    if is_oracle:
+        plot_exp(axins, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(axins, bx, mean_np, std_np, shade_, 'NP')
+    plot_exp(axins, bx, mean_cnp, std_cnp, shade_, 'CNP')
+    plot_exp(axins, bx, mean_bnp, std_bnp, shade_, 'BNP')
+
+    ## limit
+    axins.set_xlim([40, 50])
+    axins.set_ylim([0.04, 0.23])
+    plt.yticks(visible=False)
+    plt.xticks(visible=False)
+
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+    ##
+
     if prefix == 'bo_rbf_':
         ax.set_title('RBF (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_matern_':
+        ax.set_title('Matern (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_periodic_':
+        ax.set_title('Periodic (NP, CNP, BNP)', fontsize=24)
     elif prefix == 'bo_rbf_noisy_':
         ax.set_title('RBF+$t$-noise (NP, CNP, BNP)', fontsize=24)
     else:
@@ -143,8 +166,31 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Minimum simple regret', fontsize=24)
 
+    ##
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+    axins = zoomed_inset_axes(ax, 1.5, loc='center')
+    if is_oracle:
+        plot_exp(axins, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(axins, bx, mean_anp, std_np, shade_, 'NP')
+    plot_exp(axins, bx, mean_canp, std_cnp, shade_, 'CNP')
+    plot_exp(axins, bx, mean_banp, std_bnp, shade_, 'BNP')
+
+    ## limit
+    axins.set_xlim([40, 50])
+    axins.set_ylim([0.04, 0.22])
+    plt.yticks(visible=False)
+    plt.xticks(visible=False)
+
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+    ##
+
     if prefix == 'bo_rbf_':
         ax.set_title('RBF (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_matern_':
+        ax.set_title('Matern (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_periodic_':
+        ax.set_title('Periodic (ANP, CANP, BANP)', fontsize=24)
     elif prefix == 'bo_rbf_noisy_':
         ax.set_title('RBF+$t$-noise (ANP, CANP, BANP)', fontsize=24)
     else:
@@ -160,7 +206,6 @@ if __name__ == '__main__':
         bbox_inches='tight'
     )
     plt.show()
-
 
     shade_ = 1.96 * 0.04
 
@@ -187,8 +232,31 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Cumulative minimum regret', fontsize=24)
 
+    ##
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+    axins = zoomed_inset_axes(ax, 1.5, loc='upper left')
+    if is_oracle:
+        plot_exp(axins, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(axins, bx, mean_np, std_np, shade_, 'NP')
+    plot_exp(axins, bx, mean_cnp, std_cnp, shade_, 'CNP')
+    plot_exp(axins, bx, mean_bnp, std_bnp, shade_, 'BNP')
+
+    ## limit
+    axins.set_xlim([40, 50])
+    axins.set_ylim([8.7, 13.7])
+    plt.yticks(visible=False)
+    plt.xticks(visible=False)
+
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+    ##
+
     if prefix == 'bo_rbf_':
         ax.set_title('RBF (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_matern_':
+        ax.set_title('Matern (NP, CNP, BNP)', fontsize=24)
+    elif prefix == 'bo_periodic_':
+        ax.set_title('Periodic (NP, CNP, BNP)', fontsize=24)
     elif prefix == 'bo_rbf_noisy_':
         ax.set_title('RBF+$t$-noise (NP, CNP, BNP)', fontsize=24)
     else:
@@ -220,8 +288,31 @@ if __name__ == '__main__':
     ax.set_xlabel('Iteration', fontsize=24)
     ax.set_ylabel('Cumulative minimum regret', fontsize=24)
 
+    ##
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+    axins = zoomed_inset_axes(ax, 1.5, loc='upper left')
+    if is_oracle:
+        plot_exp(axins, bx, mean_oracle, std_oracle, shade_, 'GP (Oracle)')
+    plot_exp(axins, bx, mean_anp, std_np, shade_, 'NP')
+    plot_exp(axins, bx, mean_canp, std_cnp, shade_, 'CNP')
+    plot_exp(axins, bx, mean_banp, std_bnp, shade_, 'BNP')
+
+    ## limit
+    axins.set_xlim([40, 50])
+    axins.set_ylim([8, 12.1])
+    plt.yticks(visible=False)
+    plt.xticks(visible=False)
+
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    mark_inset(ax, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+    ##
+
     if prefix == 'bo_rbf_':
         ax.set_title('RBF (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_matern_':
+        ax.set_title('Matern (ANP, CANP, BANP)', fontsize=24)
+    elif prefix == 'bo_periodic_':
+        ax.set_title('Periodic (ANP, CANP, BANP)', fontsize=24)
     elif prefix == 'bo_rbf_noisy_':
         ax.set_title('RBF+$t$-noise (ANP, CANP, BANP)', fontsize=24)
     else:
@@ -237,3 +328,4 @@ if __name__ == '__main__':
         bbox_inches='tight'
     )
     plt.show()
+
