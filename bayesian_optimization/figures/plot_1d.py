@@ -41,7 +41,7 @@ if __name__ == '__main__':
     list_files.sort()
     print(list_files)
 
-    prefix = 'bo_periodic_'
+    prefix = 'bo_rbf_'
     is_oracle = True
 
     regrets_oracle, regrets_cum_oracle = get_regrets('./results/{}oracle.npy'.format(prefix))
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     ## limit
     axins.set_xlim([40, 50])
-    axins.set_ylim([0.07, 0.28])
+    axins.set_ylim([0.03, 0.22])
     plt.yticks(visible=False)
     plt.xticks(visible=False)
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     ## limit
     axins.set_xlim([40, 50])
-    axins.set_ylim([0.07, 0.28])
+    axins.set_ylim([0.03, 0.18])
     plt.yticks(visible=False)
     plt.xticks(visible=False)
 
@@ -243,7 +243,7 @@ if __name__ == '__main__':
 
     ## limit
     axins.set_xlim([40, 50])
-    axins.set_ylim([12.3, 19])
+    axins.set_ylim([6.9, 12.3])
     plt.yticks(visible=False)
     plt.xticks(visible=False)
 
@@ -299,7 +299,7 @@ if __name__ == '__main__':
 
     ## limit
     axins.set_xlim([40, 50])
-    axins.set_ylim([11.9, 18.8])
+    axins.set_ylim([7.0, 10.0])
     plt.yticks(visible=False)
     plt.xticks(visible=False)
 
