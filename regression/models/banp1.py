@@ -6,7 +6,7 @@ from models.canp import CANP
 from utils.misc import stack, logmeanexp
 from utils.sampling import sample_with_replacement as SWR, sample_subset
 
-class BANP(CANP):
+class BANP1(CANP):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dec.add_ctx(2*kwargs['dim_hid'])
@@ -20,18 +20,15 @@ class BANP(CANP):
 
     def predict(self, xc, yc, xt, num_samples=None, return_base=False):
         with torch.no_grad():
-            bxc, byc = SWR(xc, yc, num_samples=num_samples)
-            sxc, syc = stack(xc, num_samples), stack(yc, num_samples)
-
-            encoded = self.encode(bxc, byc, sxc)
-            py_res = self.dec(encoded, sxc)
-
+            encoded = self.encode(xc, yc, xc)
+            py_res = self.dec(encoded, xc)
             mu, sigma = py_res.mean, py_res.scale
-            res = SWR((syc - mu)/sigma).detach()
+            res = ((yc - mu)/sigma).detach()
+            res = SWR(res, num_samples=num_samples)
             res = (res - res.mean(-2, keepdim=True))
 
-            bxc = sxc
-            byc = mu + sigma * res
+            bxc = stack(xc, num_samples)
+            byc = stack(mu, num_samples) + stack(sigma, num_samples) * res
 
         encoded_base = self.encode(xc, yc, xt)
 

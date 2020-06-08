@@ -7,22 +7,24 @@ import yaml
 import torch
 import torch.nn as nn
 
+import math
 import time
 import matplotlib.pyplot as plt
 from attrdict import AttrDict
 from tqdm import tqdm
+from copy import deepcopy
 
 from data.gp import *
 
-from utils.misc import load_module
-from utils.paths import results_path
+from utils.misc import load_module, logmeanexp
+from utils.paths import results_path, evalsets_path
 from utils.log import get_logger, RunningAverage
 
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode',
-            choices=['train', 'eval', 'plot'],
+            choices=['train', 'eval', 'plot', 'ensemble'],
             default='train')
     parser.add_argument('--expid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
@@ -71,6 +73,8 @@ def main():
         eval(args, model)
     elif args.mode == 'plot':
         plot(args, model)
+    elif args.mode == 'ensemble':
+        ensemble(args, model)
 
 def train(args, model):
     if not osp.isdir(args.root):
@@ -142,6 +146,40 @@ def train(args, model):
     args.mode = 'eval'
     eval(args, model)
 
+def gen_evalset(args):
+    if args.eval_kernel == 'rbf':
+        kernel = RBFKernel()
+    elif args.eval_kernel == 'matern':
+        kernel = Matern52Kernel()
+    elif args.eval_kernel == 'periodic':
+        kernel = PeriodicKernel()
+    else:
+        raise ValueError(f'Invalid kernel {args.eval_kernel}')
+
+    torch.manual_seed(args.eval_seed)
+    torch.cuda.manual_seed(args.eval_seed)
+
+    sampler = GPSampler(kernel, t_noise=args.t_noise)
+    batches = []
+    for i in tqdm(range(args.eval_num_batches)):
+        batches.append(sampler.sample(
+                batch_size=args.eval_batch_size,
+                max_num_points=args.max_num_points))
+
+    torch.manual_seed(time.time())
+    torch.cuda.manual_seed(time.time())
+
+    path = osp.join(evalsets_path, 'gp')
+    if not osp.isdir(path):
+        os.makedirs(path)
+
+    filename = f'{args.eval_kernel}'
+    if args.t_noise is not None:
+        filename += f'_{args.t_noise}'
+    filename += '.tar'
+
+    torch.save(batches, osp.join(path, filename))
+
 def eval(args, model):
     if args.mode == 'eval':
         ckpt = torch.load(os.path.join(args.root, 'ckpt.tar'))
@@ -167,7 +205,16 @@ def eval(args, model):
     else:
         raise ValueError(f'Invalid kernel {args.eval_kernel}')
 
-    sampler = GPSampler(kernel, t_noise=args.t_noise)
+    path = osp.join(evalsets_path, 'gp')
+    filename = f'{args.eval_kernel}'
+    if args.t_noise is not None:
+        filename += f'_{args.t_noise}'
+    filename += '.tar'
+    if not osp.isfile(osp.join(path, filename)):
+        print('generating evaluation sets...')
+        gen_evalset(args)
+
+    eval_batches = torch.load(osp.join(path, filename))
 
     torch.manual_seed(args.eval_seed)
     torch.cuda.manual_seed(args.eval_seed)
@@ -175,11 +222,9 @@ def eval(args, model):
     ravg = RunningAverage()
     model.eval()
     with torch.no_grad():
-        for i in tqdm(range(args.eval_num_batches)):
-            batch = sampler.sample(
-                    batch_size=args.eval_batch_size,
-                    max_num_points=args.max_num_points,
-                    device='cuda')
+        for batch in tqdm(eval_batches):
+            for key, val in batch.items():
+                batch[key] = val.cuda()
             outs = model(batch, num_samples=args.eval_num_samples)
             for key, val in outs.items():
                 ravg.update(key, val)
@@ -219,7 +264,6 @@ def plot(args, model):
             device='cuda')
 
     model.eval()
-
     with torch.no_grad():
         outs = model(batch, num_samples=args.eval_num_samples)
         print(f'ctx_ll {outs.ctx_ll.item():.4f}, tar_ll {outs.tar_ll.item():.4f}')
@@ -276,6 +320,66 @@ def plot(args, model):
 
     plt.tight_layout()
     plt.show()
+
+def ensemble(args, model):
+    num_runs = 5
+    models = []
+    for i in range(num_runs):
+        model_ = deepcopy(model)
+        ckpt = torch.load(osp.join(results_path, 'gp', args.model, f'run{i+1}', 'ckpt.tar'))
+        model_.load_state_dict(ckpt['model'])
+        model_.cuda()
+        model_.eval()
+        models.append(model_)
+
+    path = osp.join(evalsets_path, 'gp')
+    filename = f'{args.eval_kernel}'
+    if args.t_noise is not None:
+        filename += f'_{args.t_noise}'
+    filename += '.tar'
+    if not osp.isfile(osp.join(path, filename)):
+        print('generating evaluation sets...')
+        gen_evalset(args)
+
+    eval_batches = torch.load(osp.join(path, filename))
+
+    torch.manual_seed(args.eval_seed)
+    torch.cuda.manual_seed(args.eval_seed)
+
+    ravg = RunningAverage()
+    with torch.no_grad():
+        for batch in tqdm(eval_batches):
+            for key, val in batch.items():
+                batch[key] = val.cuda()
+
+            ctx_ll = []
+            tar_ll = []
+            for model in models:
+                outs = model(batch,
+                        num_samples=args.eval_num_samples,
+                        reduce_ll=False)
+                ctx_ll.append(outs.ctx_ll)
+                tar_ll.append(outs.tar_ll)
+
+            if ctx_ll[0].dim() == 2:
+                ctx_ll = torch.stack(ctx_ll)
+                tar_ll = torch.stack(tar_ll)
+            else:
+                ctx_ll = torch.cat(ctx_ll)
+                tar_ll = torch.cat(tar_ll)
+
+            ctx_ll = logmeanexp(ctx_ll).mean()
+            tar_ll = logmeanexp(tar_ll).mean()
+
+            ravg.update('ctx_ll', ctx_ll)
+            ravg.update('tar_ll', tar_ll)
+
+    filename = f'ensemble_{args.eval_kernel}'
+    if args.t_noise is not None:
+        filename += f'_{args.t_noise}'
+    filename += '.log'
+    logger = get_logger(osp.join(results_path, 'gp', args.model, filename), mode='w')
+    logger.info(ravg.info())
 
 if __name__ == '__main__':
     main()

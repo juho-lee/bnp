@@ -4,6 +4,7 @@ from torch.distributions import kl_divergence
 from attrdict import AttrDict
 
 from utils.misc import stack, logmeanexp
+from utils.sampling import sample_subset
 from models.modules import PoolingEncoder, Decoder
 
 class NP(nn.Module):
@@ -50,7 +51,7 @@ class NP(nn.Module):
         encoded = stack(encoded, xt.shape[-2], -2)
         return self.dec(encoded, stack(xt, num_samples))
 
-    def forward(self, batch, num_samples=None):
+    def forward(self, batch, num_samples=None, reduce_ll=True):
         outs = AttrDict()
         if self.training:
             pz = self.lenc(batch.xc, batch.yc)
@@ -72,8 +73,15 @@ class NP(nn.Module):
                 ll = py.log_prob(batch.y).sum(-1)
             else:
                 y = torch.stack([batch.y]*num_samples)
-                ll = logmeanexp(py.log_prob(y).sum(-1))
+                if reduce_ll:
+                    ll = logmeanexp(py.log_prob(y).sum(-1))
+                else:
+                    ll = py.log_prob(y).sum(-1)
             num_ctx = batch.xc.shape[-2]
-            outs.ctx_ll = ll[...,:num_ctx].mean()
-            outs.tar_ll = ll[...,num_ctx:].mean()
+            if reduce_ll:
+                outs.ctx_ll = ll[...,:num_ctx].mean()
+                outs.tar_ll = ll[...,num_ctx:].mean()
+            else:
+                outs.ctx_ll = ll[...,:num_ctx]
+                outs.tar_ll = ll[...,num_ctx:]
         return outs

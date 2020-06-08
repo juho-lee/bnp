@@ -3,12 +3,17 @@ from attrdict import AttrDict
 from torch.utils.data import DataLoader
 from torch.distributions import StudentT, Normal
 
-def img_to_task(img, num_ctx=None, max_num_points=None,
-        target_all=False, t_noise=0.0, device=None):
+def img_to_task(img, num_ctx=None,
+        max_num_points=None, target_all=False, t_noise=None, device=None):
 
     B, C, H, W = img.shape
     num_pixels = H*W
     img = img.view(B, C, -1)
+
+    if t_noise is not None:
+        if t_noise == -1:
+            t_noise = 0.09 * torch.rand(img.shape)
+        img += t_noise * StudentT(2.1).rsample(img.shape)
 
     device = img.device if device is None else device
 
@@ -26,12 +31,6 @@ def img_to_task(img, num_ctx=None, max_num_points=None,
         2*x2.float()/(W-1) - 1], -1).to(device)
     batch.y = (torch.gather(img, -1, idxs.unsqueeze(-2).repeat(1, C, 1))\
             .transpose(-2, -1) - 0.5).to(device)
-
-    if t_noise is not None:
-        if t_noise == -1:
-            t_noise = 0.09 * torch.rand(batch.y.shape).to(device)
-        batch.y += t_noise * \
-                StudentT(2.1).rsample(batch.y.shape).to(batch.y.device)
 
     batch.xc = batch.x[:,:num_ctx]
     batch.xt = batch.x[:,num_ctx:]

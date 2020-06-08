@@ -7,13 +7,15 @@ import yaml
 import torch
 import torch.nn as nn
 
+import math
 import time
 import matplotlib.pyplot as plt
 from attrdict import AttrDict
 from tqdm import tqdm
+from copy import deepcopy
 
-from utils.misc import load_module
-from utils.paths import results_path, datasets_path
+from utils.misc import load_module, logmeanexp
+from utils.paths import results_path, datasets_path, evalsets_path
 from utils.log import get_logger, RunningAverage
 from data.lotka_volterra import load_hare_lynx
 
@@ -34,7 +36,7 @@ def standardize(batch):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode',
-            choices=['train', 'eval', 'plot'],
+            choices=['train', 'eval', 'plot', 'ensemble'],
             default='train')
     parser.add_argument('--expid', type=str, default='trial')
     parser.add_argument('--resume', action='store_true', default=False)
@@ -76,6 +78,8 @@ def main():
         eval(args, model)
     elif args.mode == 'plot':
         plot(args, model)
+    elif args.mode == 'ensemble':
+        ensemble(args, model)
 
 def train(args, model):
     if not osp.isdir(args.root):
@@ -196,6 +200,64 @@ def eval(args, model, eval_data=None):
         logger.info(line)
 
     return line
+
+def ensemble(args, model):
+    num_runs = 5
+    models = []
+    for i in range(num_runs):
+        model_ = deepcopy(model)
+        ckpt = torch.load(osp.join(results_path, 'lotka_volterra', args.model, f'run{i+1}', 'ckpt.tar'))
+        model_.load_state_dict(ckpt['model'])
+        model_.cuda()
+        model_.eval()
+        models.append(model_)
+
+    torch.manual_seed(args.eval_seed)
+    torch.cuda.manual_seed(args.eval_seed)
+
+    if args.hare_lynx:
+        eval_data = load_hare_lynx(1000, 16)
+    else:
+        eval_data = torch.load(osp.join(datasets_path, 'lotka_volterra', 'eval.tar'))
+
+    ravg = RunningAverage()
+    with torch.no_grad():
+        for batch in tqdm(eval_data):
+            batch = standardize(batch)
+            for key, val in batch.items():
+                batch[key] = val.cuda()
+
+            ctx_ll = []
+            tar_ll = []
+            for model_ in models:
+                outs = model_(batch,
+                        num_samples=args.eval_num_samples,
+                        reduce_ll=False)
+                ctx_ll.append(outs.ctx_ll)
+                tar_ll.append(outs.tar_ll)
+
+            if ctx_ll[0].dim() == 2:
+                ctx_ll = torch.stack(ctx_ll)
+                tar_ll = torch.stack(tar_ll)
+            else:
+                ctx_ll = torch.cat(ctx_ll)
+                tar_ll = torch.cat(tar_ll)
+
+            ctx_ll = logmeanexp(ctx_ll).mean()
+            tar_ll = logmeanexp(tar_ll).mean()
+
+            ravg.update('ctx_ll', ctx_ll)
+            ravg.update('tar_ll', tar_ll)
+
+    torch.manual_seed(time.time())
+    torch.cuda.manual_seed(time.time())
+
+    filename = 'ensemble'
+    if args.hare_lynx:
+        filename += '_hare_lynx'
+    filename += '.log'
+    logger = get_logger(osp.join(results_path, 'lotka_volterra', args.model, filename), mode='w')
+    logger.info(ravg.info())
 
 def plot(args, model):
     ckpt = torch.load(osp.join(args.root, 'ckpt.tar'))

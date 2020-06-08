@@ -4,7 +4,7 @@ from attrdict import AttrDict
 
 from models.cnp import CNP
 from utils.misc import stack, logmeanexp
-from utils.sampling import sample_with_replacement as SWR, sample_mask
+from utils.sampling import sample_with_replacement as SWR, sample_subset
 
 class BNP(CNP):
     def __init__(self, *args, **kwargs):
@@ -17,7 +17,7 @@ class BNP(CNP):
             self.enc2(xc, yc, mask=mask)], -1)
         return stack(encoded, xt.shape[-2], -2)
 
-    def predict(self, xc, yc, xt, num_samples=None):
+    def predict(self, xc, yc, xt, num_samples=None, return_base=False):
         with torch.no_grad():
             bxc, byc = SWR(xc, yc, num_samples=num_samples)
             sxc, syc = stack(xc, num_samples), stack(yc, num_samples)
@@ -40,18 +40,18 @@ class BNP(CNP):
         py = self.dec(stack(encoded_base, num_samples),
                 sxt, ctx=encoded_bs)
 
-        if self.training:
+        if self.training or return_base:
             py_base = self.dec(encoded_base, xt)
             return py_base, py
         else:
             return py
 
-    def forward(self, batch, num_samples=None):
+    def forward(self, batch, num_samples=None, reduce_ll=True):
         outs = AttrDict()
 
         def compute_ll(py, y):
             ll = py.log_prob(y).sum(-1)
-            if ll.dim() == 3:
+            if ll.dim() == 3 and reduce_ll:
                 ll = logmeanexp(ll)
             return ll
 
@@ -67,7 +67,11 @@ class BNP(CNP):
                     num_samples=num_samples)
             ll = compute_ll(py, batch.y)
             num_ctx = batch.xc.shape[-2]
-            outs.ctx_ll = ll[...,:num_ctx].mean()
-            outs.tar_ll = ll[...,num_ctx:].mean()
+            if reduce_ll:
+                outs.ctx_ll = ll[...,:num_ctx].mean()
+                outs.tar_ll = ll[...,num_ctx:].mean()
+            else:
+                outs.ctx_ll = ll[...,:num_ctx]
+                outs.tar_ll = ll[...,num_ctx:]
 
         return outs

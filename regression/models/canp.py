@@ -46,7 +46,7 @@ class CANP(nn.Module):
             torch.stack([theta2]*xt.shape[-2], -2)], -1)
         return self.dec(encoded, xt)
 
-    def forward(self, batch, num_samples=None):
+    def forward(self, batch, num_samples=None, reduce_ll=True):
         outs = AttrDict()
         py = self.predict(batch.xc, batch.yc, batch.x)
         ll = py.log_prob(batch.y).sum(-1)
@@ -55,6 +55,11 @@ class CANP(nn.Module):
             outs.loss = -ll.mean()
         else:
             num_ctx = batch.xc.shape[-2]
-            outs.ctx_ll = ll[...,:num_ctx].mean()
-            outs.tar_ll = ll[...,num_ctx:].mean()
+            if reduce_ll:
+                outs.ctx_ll = ll[...,:num_ctx].mean()
+                outs.tar_ll = ll[...,num_ctx:].mean()
+            else:
+                outs.ctx_ll = ll[...,:num_ctx]
+                outs.tar_ll = ll[...,num_ctx:]
+
         return outs

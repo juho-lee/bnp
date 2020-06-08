@@ -14,9 +14,9 @@ def sample_subset(*items, r_N=None, num_samples=None):
     r_N = r_N or torch.rand(1).item()
     K = num_samples or 1
     N = items[0].shape[-2]
-    Ns = max(1, int(r_N * N))
+    Ns = min(max(1, int(r_N * N)), N-1)
     batch_shape = items[0].shape[:-2]
-    idxs = torch.rand((K,)+batch_shape+(Ns,)).argsort(-1)
+    idxs = torch.rand((K,)+batch_shape+(N,)).argsort(-1)
     return gather(items, idxs[...,:Ns]), gather(items, idxs[...,Ns:])
 
 def sample_with_replacement(*items, num_samples=None, r_N=1.0, N_s=None):
