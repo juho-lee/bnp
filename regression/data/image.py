@@ -28,6 +28,8 @@ def img_to_task(img, num_ctx=None, max_num_points=None,
             .transpose(-2, -1) - 0.5).to(device)
 
     if t_noise is not None:
+        if t_noise == -1:
+            t_noise = 0.09 * torch.rand(batch.y.shape).to(device)
         batch.y += t_noise * \
                 StudentT(2.1).rsample(batch.y.shape).to(batch.y.device)
 
@@ -37,6 +39,26 @@ def img_to_task(img, num_ctx=None, max_num_points=None,
     batch.yt = batch.y[:,num_ctx:]
 
     return batch
+
+def coord_to_img(x, y, shape):
+    x = x.cpu()
+    y = y.cpu()
+    B = x.shape[0]
+    C, H, W = shape
+
+    I = torch.zeros(B, 3, H, W)
+    I[:,0,:,:] = 0.61
+    I[:,1,:,:] = 0.55
+    I[:,2,:,:] = 0.71
+
+    x1, x2 = x[...,0], x[...,1]
+    x1 = ((x1+1)*(H-1)/2).round().long()
+    x2 = ((x2+1)*(W-1)/2).round().long()
+    for b in range(B):
+        for c in range(3):
+            I[b,c,x1[b],x2[b]] = y[b,:,min(c,C-1)]
+
+    return I
 
 def task_to_img(xc, yc, xt, yt, shape):
     xc = xc.cpu()
