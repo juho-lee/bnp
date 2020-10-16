@@ -1,0 +1,7 @@
+results/bo_rbf_oracle_*
+results/bo_rbf_noisy_oracle_*
+results/bo_matern_oracle_*
+results/bo_matern_noisy_oracle_*
+results/bo_periodic_oracle_*
+results/bo_periodic_noisy_oracle_*
+
