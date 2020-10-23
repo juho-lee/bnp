@@ -1,1 +1,1 @@
-# bootstrapping neural_process
+# Bootstrapping Neural Processes
